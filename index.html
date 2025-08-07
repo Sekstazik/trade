@@ -913,21 +913,25 @@
 
 
 
+                const forexFragment = document.createDocumentFragment();
                 forexSymbols.forEach(({ symbol, description }) => {
                     const option = document.createElement('option');
                     option.value = symbol;
                     option.textContent = `${symbol} - ${description || 'Валютная пара'}`;
-                    symbolSelect.appendChild(option);
+                    forexFragment.appendChild(option);
                     initialPriceMap[symbol] = Math.random() * 2 + 0.5;
                 });
+                symbolSelect.appendChild(forexFragment);
 
+                const cryptoFragment = document.createDocumentFragment();
                 cryptoSymbols.forEach(({ symbol, description }) => {
                     const option = document.createElement('option');
                     option.value = symbol;
                     option.textContent = `${symbol} - ${description || 'Криптовалюта'}`;
-                    symbolSelect.appendChild(option);
+                    cryptoFragment.appendChild(option);
                     initialPriceMap[symbol] = Math.random() * 1000 + 100;
                 });
+                symbolSelect.appendChild(cryptoFragment);
 
                 initChart();
                 startLiveChart(symbolSelect.value);
