@@ -891,13 +891,16 @@
 
                 symbolSelect.innerHTML = '';
 
+                const stockFragment = document.createDocumentFragment();
                 stockSymbols.forEach(({ symbol, description }) => {
                     const option = document.createElement('option');
                     option.value = symbol;
                     option.textContent = `${symbol} - ${description || 'Акция'}`;
-                    symbolSelect.appendChild(option);
+                    stockFragment.appendChild(option);
                     initialPriceMap[symbol] = Math.random() * 200 + 20;
                 });
+                symbolSelect.appendChild(stockFragment);
+
 
                 document.getElementById('symbolSearch').addEventListener('input', function () {
                     const query = this.value.toLowerCase();
