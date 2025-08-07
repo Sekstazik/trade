@@ -734,6 +734,11 @@
                 regLoginContainer.style.display = 'none';
                 dropdownMenu.classList.remove('show');
                 mainAppContent.style.display = 'block';
+
+                // ПЕРЕМЕСТИЛИ СЮДА
+                renderHistory();
+                loadSymbols(); // << Инициализация графика после входа
+
             } else {
                 accountArea.style.display = 'none';
                 regLoginContainer.style.display = 'block';
@@ -741,6 +746,7 @@
                 mainAppContent.style.display = 'none';
             }
         }
+
 
 
         auth.onAuthStateChanged(updateUI);
