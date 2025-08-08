@@ -8,6 +8,8 @@
     <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
     <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
     <script src="https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
 
     <title>Firebase Auth Demo</title>
     <style>
@@ -765,19 +767,21 @@
             resetPasswordFields();
         };
 
-        btnRegister.onclick = () => {
-            if (mode === 'register') return;
-            mode = 'register';
-            btnRegister.classList.add('active');
-            btnLogin.classList.remove('active');
-            confirmPasswordContainer.style.display = 'block';
-            submitBtn.textContent = 'Зарегистрироваться';
-            alreadyRegisteredBtn.style.display = 'block';
+        function switchMode(newMode) {
+            mode = newMode;
+            btnLogin.classList.toggle('active', newMode === 'login');
+            btnRegister.classList.toggle('active', newMode === 'register');
+            confirmPasswordContainer.style.display = newMode === 'register' ? 'block' : 'none';
+            submitBtn.textContent = newMode === 'register' ? 'Зарегистрироваться' : 'Войти';
+            alreadyRegisteredBtn.style.display = newMode === 'register' ? 'block' : 'none';
             emailInput.value = '';
             passwordInput.value = '';
             confirmPasswordInput.value = '';
             resetPasswordFields();
-        };
+        }
+        btnLogin.onclick = () => switchMode('login');
+        btnRegister.onclick = () => switchMode('register');
+
 
         alreadyRegisteredBtn.onclick = () => {
             btnLogin.click();
