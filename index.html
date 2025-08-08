@@ -422,7 +422,6 @@
         }
 
         #right-panel {
-            width: 300px;
             background-color: #111;
             border-left: 1px solid #333;
             padding: 10px;
@@ -505,7 +504,6 @@
 
         #balance-container {
             text-align: center;
-            width: 190px;
             gap: 12px;
             padding: 10px 15px;
             background-color: #111;
@@ -650,7 +648,7 @@
                 <div id="left-panel" style="flex: 1; position: relative;">
                     <div id="controls" style=" top: 10px; left: 10px; z-index: 10;">
                         <input type="text" id="symbolSearch" placeholder="Поиск..." />
-                        <select id="symbol">
+                        <select id="symbol" style="width: 300px">
                             <option>Загрузка...</option>
                         </select>
 
@@ -665,20 +663,22 @@
                     <div id="chart" style="width: 100%; height: 100%;"></div>
                 </div>
 
-                <div id="right-panel"
-                    style="width: 300px; background: #111; border-left: 1px solid #333; padding: 10px; display: flex; flex-direction: column; overflow-y: auto;">
-                    <div class="stake-container">
-                        <label for="stake" class="stake-label">Сумма сделки</label>
-                        <input type="number" id="stake" value="100" min="10" step="10" />
-                    </div>
-                    <div id="trade-buttons" style="margin-bottom: 10px; gap: 10px;">
-                        <button id="buyUp">Вверх</button>
-                        <button id="buyDown">Вниз</button>
-                    </div>
 
-                    <div id="history" style="flex: 1; overflow-y: auto;">
-                        <div id="history-list"></div>
-                    </div>
+            </div>
+
+            <div id="right-panel"
+                style=" background: #111; border-left: 1px solid #333; padding: 10px; display: flex; flex-direction: column; overflow-y: auto;">
+                <div class="stake-container">
+                    <label for="stake" class="stake-label">Сумма сделки</label>
+                    <input type="number" id="stake" value="100" min="10" step="10" />
+                </div>
+                <div id="trade-buttons" style="margin-bottom: 10px; gap: 10px;">
+                    <button id="buyUp">Вверх</button>
+                    <button id="buyDown">Вниз</button>
+                </div>
+
+                <div id="history" style="flex: 1; overflow-y: auto;">
+                    <div id="history-list"></div>
                 </div>
             </div>
         </div>
@@ -690,7 +690,6 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <script>
-        // --- Firebase config и инициализация ---
         const firebaseConfig = {
             apiKey: "AIzaSyBC8yqtzenwdGa0g6f1vRt2OTwVAWj44n0",
             authDomain: "kroll-7e9fe.firebaseapp.com",
@@ -704,46 +703,44 @@
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
 
-        // --- DOM элементы ---
         const loaderContainer = document.getElementById('loader-container');
         const loader = document.getElementById('loader');
         const accountArea = document.getElementById('account-area');
-        const regLoginContainer = document.getElementById('reg-login-container');
+        const accountEmail = document.getElementById('account-email');
         const dropdownMenu = document.getElementById('dropdown-menu');
+        const regLoginContainer = document.getElementById('reg-login-container');
         const btnLogin = document.getElementById('btn-login');
         const btnRegister = document.getElementById('btn-register');
         const submitBtn = document.getElementById('submit-btn');
         const alreadyRegisteredBtn = document.getElementById('already-registered-btn');
+
         const emailInput = document.getElementById('email');
         const passwordInput = document.getElementById('password');
         const confirmPasswordInput = document.getElementById('confirm-password');
         const confirmPasswordContainer = document.getElementById('confirm-password-container');
         const logoutLink = document.getElementById('logout-link');
-        const accountEmail = document.getElementById('account-email');
-        const mainAppContent = document.getElementById('main-app-content');
-        const userEmailText = document.getElementById('user-email-text');
-        const showPasswordsCheckbox = document.getElementById('show-passwords-checkbox');
 
-        // --- Переменные ---
-        let mode = 'login';
-
-        // --- Лоадер ---
         setTimeout(() => {
             loader.style.opacity = 0;
             setTimeout(() => loaderContainer.style.display = 'none', 1000);
         }, 3000);
 
-        // --- Обновление UI в зависимости от статуса пользователя ---
+        let mode = 'login';
+
         function updateUI(user) {
+            const mainAppContent = document.getElementById('main-app-content');
+
             if (user) {
-                userEmailText.textContent = user.email;
+                document.getElementById('user-email-text').textContent = user.email;
                 accountArea.style.display = 'block';
                 regLoginContainer.style.display = 'none';
                 dropdownMenu.classList.remove('show');
                 mainAppContent.style.display = 'block';
 
+                // ПЕРЕМЕСТИЛИ СЮДА
                 renderHistory();
-                loadSymbols(); // инициализация графика после входа
+                loadSymbols(); // << Инициализация графика после входа
+
             } else {
                 accountArea.style.display = 'none';
                 regLoginContainer.style.display = 'block';
@@ -752,9 +749,24 @@
             }
         }
 
+
+
         auth.onAuthStateChanged(updateUI);
 
-        // --- Переключение режимов регистрации / входа ---
+        btnLogin.onclick = () => {
+            if (mode === 'login') return;
+            mode = 'login';
+            btnLogin.classList.add('active');
+            btnRegister.classList.remove('active');
+            confirmPasswordContainer.style.display = 'none';
+            submitBtn.textContent = 'Войти';
+            alreadyRegisteredBtn.style.display = 'none';
+            emailInput.value = '';
+            passwordInput.value = '';
+            confirmPasswordInput.value = '';
+            resetPasswordFields();
+        };
+
         function switchMode(newMode) {
             mode = newMode;
             btnLogin.classList.toggle('active', newMode === 'login');
@@ -762,22 +774,19 @@
             confirmPasswordContainer.style.display = newMode === 'register' ? 'block' : 'none';
             submitBtn.textContent = newMode === 'register' ? 'Зарегистрироваться' : 'Войти';
             alreadyRegisteredBtn.style.display = newMode === 'register' ? 'block' : 'none';
-            resetForm();
-        }
-
-        function resetForm() {
             emailInput.value = '';
             passwordInput.value = '';
             confirmPasswordInput.value = '';
             resetPasswordFields();
         }
-
         btnLogin.onclick = () => switchMode('login');
         btnRegister.onclick = () => switchMode('register');
 
-        alreadyRegisteredBtn.onclick = () => btnLogin.click();
 
-        // --- Обработка отправки формы ---
+        alreadyRegisteredBtn.onclick = () => {
+            btnLogin.click();
+        };
+
         submitBtn.onclick = () => {
             const email = emailInput.value.trim();
             const password = passwordInput.value.trim();
@@ -801,20 +810,20 @@
             }
         };
 
-        // --- Выход из аккаунта ---
         logoutLink.onclick = (e) => {
             e.preventDefault();
             auth.signOut();
         };
 
-        // --- Меню аккаунта ---
         accountEmail.onclick = (e) => {
             e.stopPropagation();
             dropdownMenu.classList.toggle('show');
         };
-        document.addEventListener('click', () => dropdownMenu.classList.remove('show'));
 
-        // --- Показать/скрыть пароль ---
+        document.addEventListener('click', () => {
+            dropdownMenu.classList.remove('show');
+        });
+
         function togglePasswordVisibility(button) {
             const targetId = button.getAttribute('data-target');
             const input = document.getElementById(targetId);
@@ -840,16 +849,22 @@
             button.addEventListener('click', () => togglePasswordVisibility(button));
         });
 
+        const showPasswordsCheckbox = document.getElementById('show-passwords-checkbox');
+
         showPasswordsCheckbox.addEventListener('change', () => {
             const show = showPasswordsCheckbox.checked;
             const type = show ? 'text' : 'password';
-            [passwordInput, confirmPasswordInput].forEach(input => input.type = type);
+            document.querySelectorAll('#password, #confirm-password').forEach(input => {
+                input.type = type;
+            });
         });
+
     </script>
 
+
     <script>
-        // --- Константы и DOM элементы ---
         const API_KEY = 'd288dk9r01qr2iav9f9gd288dk9r01qr2iav9fa0';
+
         const symbolSelect = document.getElementById('symbol');
         const balanceDisplay = document.getElementById('balance');
         const stakeInput = document.getElementById('stake');
@@ -857,7 +872,6 @@
         const historyList = document.getElementById('history-list');
         const chartElement = document.getElementById('chart');
 
-        // --- Переменные состояния ---
         let balance = parseFloat(localStorage.getItem('balance')) || 1000;
         let allData = JSON.parse(localStorage.getItem('chartData')) || {};
         let tradeHistory = JSON.parse(localStorage.getItem('tradeHistory')) || [];
@@ -868,73 +882,82 @@
 
         balanceDisplay.textContent = balance.toFixed(2);
 
-        // --- Загрузка символов ---
         async function loadSymbols() {
             try {
-                const [resStocks, resForex, resCrypto] = await Promise.all([
-                    fetch(`https://finnhub.io/api/v1/stock/symbol?exchange=US&token=${API_KEY}`),
-                    fetch(`https://finnhub.io/api/v1/forex/symbol?exchange=OANDA&token=${API_KEY}`),
-                    fetch(`https://finnhub.io/api/v1/crypto/symbol?exchange=BINANCE&token=${API_KEY}`)
-                ]);
+                const resStocks = await fetch(`https://finnhub.io/api/v1/stock/symbol?exchange=US&token=${API_KEY}`);
+                const stockSymbols = await resStocks.json();
 
-                const [stockSymbols, forexSymbols, cryptoSymbols] = await Promise.all([
-                    resStocks.json(), resForex.json(), resCrypto.json()
-                ]);
+                const resForex = await fetch(`https://finnhub.io/api/v1/forex/symbol?exchange=OANDA&token=${API_KEY}`);
+                const forexSymbols = await resForex.json();
+
+                const resCrypto = await fetch(`https://finnhub.io/api/v1/crypto/symbol?exchange=BINANCE&token=${API_KEY}`);
+                const cryptoSymbols = await resCrypto.json();
 
                 symbolSelect.innerHTML = '';
 
-                // Добавляем акции
-                appendSymbols(stockSymbols, 'Акция', 20, 220);
-                // Добавляем валютные пары
-                appendSymbols(forexSymbols, 'Валютная пара', 0.5, 2.5);
-                // Добавляем криптовалюты
-                appendSymbols(cryptoSymbols, 'Криптовалюта', 100, 1100);
+                const stockFragment = document.createDocumentFragment();
+                stockSymbols.forEach(({ symbol, description }) => {
+                    const option = document.createElement('option');
+                    option.value = symbol;
+                    option.textContent = `${symbol} - ${description || 'Акция'}`;
+                    stockFragment.appendChild(option);
+                    initialPriceMap[symbol] = Math.random() * 200 + 20;
+                });
+                symbolSelect.appendChild(stockFragment);
+
+
+                document.getElementById('symbolSearch').addEventListener('input', function () {
+                    const query = this.value.toLowerCase();
+                    const options = symbolSelect.options;
+                    for (let i = 0; i < options.length; i++) {
+                        const text = options[i].textContent.toLowerCase();
+                        options[i].style.display = text.includes(query) ? '' : 'none';
+                    }
+                });
+
+
+
+                const forexFragment = document.createDocumentFragment();
+                forexSymbols.forEach(({ symbol, description }) => {
+                    const option = document.createElement('option');
+                    option.value = symbol;
+                    option.textContent = `${symbol} - ${description || 'Валютная пара'}`;
+                    forexFragment.appendChild(option);
+                    initialPriceMap[symbol] = Math.random() * 2 + 0.5;
+                });
+                symbolSelect.appendChild(forexFragment);
+
+                const cryptoFragment = document.createDocumentFragment();
+                cryptoSymbols.forEach(({ symbol, description }) => {
+                    const option = document.createElement('option');
+                    option.value = symbol;
+                    option.textContent = `${symbol} - ${description || 'Криптовалюта'}`;
+                    cryptoFragment.appendChild(option);
+                    initialPriceMap[symbol] = Math.random() * 1000 + 100;
+                });
+                symbolSelect.appendChild(cryptoFragment);
 
                 initChart();
                 startLiveChart(symbolSelect.value);
-
                 symbolSelect.addEventListener('change', () => {
                     initChart();
                     startLiveChart(symbolSelect.value);
                 });
-
-                // Поиск по символам
-                document.getElementById('symbolSearch').addEventListener('input', function () {
-                    const query = this.value.toLowerCase();
-                    Array.from(symbolSelect.options).forEach(option => {
-                        option.style.display = option.textContent.toLowerCase().includes(query) ? '' : 'none';
-                    });
-                });
-
             } catch (error) {
                 console.error('Ошибка при загрузке символов:', error);
                 symbolSelect.innerHTML = '<option>Ошибка загрузки</option>';
             }
         }
 
-        // --- Добавление символов в селект и генерация начальных цен ---
-        function appendSymbols(symbols, defaultDescription, minPrice, maxPrice) {
-            const fragment = document.createDocumentFragment();
-            symbols.forEach(({ symbol, description }) => {
-                const option = document.createElement('option');
-                option.value = symbol;
-                option.textContent = `${symbol} - ${description || defaultDescription}`;
-                fragment.appendChild(option);
-                initialPriceMap[symbol] = Math.random() * (maxPrice - minPrice) + minPrice;
-            });
-            symbolSelect.appendChild(fragment);
-        }
-
-        // --- Сохранение состояния ---
         function saveState() {
             localStorage.setItem('balance', balance.toFixed(2));
             localStorage.setItem('chartData', JSON.stringify(allData));
             localStorage.setItem('tradeHistory', JSON.stringify(tradeHistory));
         }
 
-        // --- Отрисовка истории сделок ---
         function renderHistory() {
             historyList.innerHTML = '';
+            // Показываем только последние 5 записей, перевернутые по времени (новые сверху)
             const recentHistory = tradeHistory.slice(-5).reverse();
             recentHistory.forEach(({ time, symbol, direction, entryPrice, exitPrice, stake, profit }) => {
                 const div = document.createElement('div');
@@ -944,17 +967,14 @@
             });
         }
 
-        // --- Инициализация графика ---
         function initChart() {
             if (chart) chart.remove();
-
             chart = LightweightCharts.createChart(chartElement, {
                 layout: { background: { color: '#000' }, textColor: '#ccc' },
                 grid: { vertLines: { color: '#222' }, horzLines: { color: '#222' } },
                 timeScale: { borderColor: '#555', timeVisible: true, secondsVisible: true, rightOffset: 5 },
-                rightPriceScale: { scaleMargins: { top: 0.1, bottom: 0.1 }, borderColor: '#555' }
+                rightPriceScale: { scaleMargins: { top: 0.1, bottom: 0.1 }, borderColor: '#555' },
             });
-
             candleSeries = chart.addCandlestickSeries({
                 upColor: '#26a69a', downColor: '#ef5350',
                 borderUpColor: '#26a69a', borderDownColor: '#ef5350',
@@ -962,7 +982,6 @@
             });
         }
 
-        // --- Запуск живого обновления графика ---
         function startLiveChart(symbol) {
             clearInterval(updateInterval);
             const now = Math.floor(Date.now() / 1000);
@@ -970,139 +989,207 @@
             if (!allData[symbol]) {
                 const basePrice = initialPriceMap[symbol] || 100;
                 const candles = [];
-                let prevClose = basePrice;
+                let previousClose = basePrice;
 
-                for (let i = 240; i > 0; i--) {
-                    const time = now - i * 60;
-                    const open = prevClose;
-                    const close = open + (Math.random() - 0.5);
-                    const high = Math.max(open, close) + Math.random() * 0.5;
-                    const low = Math.min(open, close) - Math.random() * 0.5;
-                    prevClose = close;
-                    candles.push({ time, open, high, low, close });
+                for (let i = 240; i > 0; i--) { // 60 минут назад
+                    const time = now - i * 60; // шаг 1 минута назад
+                    const open = previousClose;
+                    const close = open + (Math.random() - 0.5) * 2;
+                    const high = Math.max(open, close) + Math.random();
+                    const low = Math.min(open, close) - Math.random();
+
+                    candles.push({
+                        time,
+                        open,
+                        high,
+                        low,
+                        close,
+                    });
+
+                    previousClose = close;
                 }
-                allData[symbol] = candles;
-                saveState();
+
+                const lastCandle = candles[candles.length - 1];
+                allData[symbol] = {
+                    lastTime: lastCandle.time,
+                    lastPrice: lastCandle.close,
+                    currentCandle: lastCandle,
+                    data: candles,
+                };
             }
 
-            candleSeries.setData(allData[symbol]);
+            const symbolData = allData[symbol];
+            candleSeries.setData(symbolData.data);
+            // chart.timeScale().scrollToPosition(0); // Удалить или закомментировать
+
 
             updateInterval = setInterval(() => {
-                const candles = allData[symbol];
-                const lastCandle = candles[candles.length - 1];
-                const now = Math.floor(Date.now() / 1000);
+                const currentTime = Math.floor(Date.now() / 1000);
+                const newPrice = symbolData.lastPrice + (Math.random() - 0.5) * 2;
 
-                if (now >= lastCandle.time + 60) {
-                    // Новый бар
-                    const open = lastCandle.close;
-                    const close = open + (Math.random() - 0.5);
-                    const high = Math.max(open, close) + Math.random() * 0.5;
-                    const low = Math.min(open, close) - Math.random() * 0.5;
-                    const newCandle = { time: now, open, high, low, close };
-                    candles.push(newCandle);
-                    if (candles.length > 240) candles.shift();
-                    candleSeries.update(newCandle);
+                if (currentTime !== symbolData.lastTime) {
+                    const volatility = Math.random() * 1.5 + 0.2; // Волатильность: от 0.2 до 1.7
+
+                    symbolData.currentCandle = {
+                        time: currentTime,
+                        open: symbolData.lastPrice,
+                        close: newPrice,
+                        high: Math.max(symbolData.lastPrice, newPrice) + Math.random() * volatility,
+                        low: Math.min(symbolData.lastPrice, newPrice) - Math.random() * volatility,
+                    };
+                    symbolData.data.push(symbolData.currentCandle);
+                    candleSeries.update({ ...symbolData.currentCandle });
+                    symbolData.lastTime = currentTime;
                 } else {
-                    // Обновление текущего бара
-                    const newClose = lastCandle.close + (Math.random() - 0.5) * 0.1;
-                    lastCandle.close = newClose;
-                    lastCandle.high = Math.max(lastCandle.high, newClose);
-                    lastCandle.low = Math.min(lastCandle.low, newClose);
-                    candleSeries.update(lastCandle);
+                    // Обновляем текущую свечу
+                    symbolData.currentCandle.close = newPrice;
+                    symbolData.currentCandle.high = Math.max(symbolData.currentCandle.high, newPrice);
+                    symbolData.currentCandle.low = Math.min(symbolData.currentCandle.low, newPrice);
+
+                    candleSeries.update({ ...symbolData.currentCandle });
                 }
+
+                symbolData.lastPrice = newPrice;
                 saveState();
             }, 1000);
+
         }
 
-        // --- Сделка ---
-        document.getElementById('open-order-btn').addEventListener('click', () => {
+        function placeOrder(direction) {
             const symbol = symbolSelect.value;
-            const direction = document.querySelector('input[name="direction"]:checked').value;
+            const duration = parseInt(durationSelect.value);
+            const symbolData = allData[symbol];
+            if (!symbolData?.currentCandle) return;
+
             const stake = parseFloat(stakeInput.value);
-            const duration = parseInt(durationSelect.value, 10);
-
-            if (!symbol || !direction || isNaN(stake) || stake <= 0 || isNaN(duration) || duration <= 0) {
-                alert('Пожалуйста, заполните все поля корректно.');
-                return;
-            }
-
-            if (stake > balance) {
-                alert('Недостаточно средств для ставки.');
-                return;
-            }
-
-            const currentPrice = allData[symbol]?.slice(-1)[0]?.close;
-            if (!currentPrice) {
-                alert('Нет данных для выбранного символа.');
-                return;
-            }
+            if (isNaN(stake) || stake <= 0) return alert('Введите корректную сумму сделки');
+            if (balance < stake) return alert('Недостаточно средств');
 
             balance -= stake;
             balanceDisplay.textContent = balance.toFixed(2);
-            saveState();
+
+            const entryPrice = symbolData.currentCandle.close;
+            const entryTime = symbolData.currentCandle.time;
+
+            const line = chart.addLineSeries({
+                color: direction === 'up' ? '#00ff00' : '#ff9900',
+                lineWidth: 2,
+                lineStyle: 2,
+                priceLineVisible: true,
+            });
+
+            line.setData([
+                { time: entryTime, value: entryPrice },
+                { time: entryTime + duration, value: entryPrice },
+            ]);
 
             const order = {
                 symbol,
                 direction,
+                entryTime,
+                entryPrice,
                 stake,
                 duration,
-                entryPrice: currentPrice,
-                startTime: Date.now(),
+                line,
+                resolved: false,
             };
 
             openOrders.push(order);
 
-            setTimeout(() => closeOrder(order), duration * 1000);
-        });
+            const timeString = new Date(entryTime * 1000).toLocaleTimeString();
+            const div = document.createElement('div');
+            div.className = 'history-entry';
+            div.textContent = `${timeString} — ${symbol} ${direction === 'up' ? '🔼' : '🔽'} | вход: $${entryPrice.toFixed(2)} | ставка: $${stake.toFixed(2)} | ⏳ Ожидает... `;
 
-        // --- Закрытие сделки ---
-        function closeOrder(order) {
-            const symbol = order.symbol;
-            const direction = order.direction;
-            const stake = order.stake;
-            const entryPrice = order.entryPrice;
-            const currentPrice = allData[symbol]?.slice(-1)[0]?.close;
+            const countdownSpan = document.createElement('span');
+            div.appendChild(countdownSpan);
 
-            if (!currentPrice) {
-                alert('Нет данных для закрытия сделки.');
-                return;
+            historyList.prepend(div);
+            order.domElement = div;
+            order.countdownSpan = countdownSpan;
+
+            // Запускаем таймер обратного отсчёта
+            function updateCountdown() {
+                const now = Math.floor(Date.now() / 1000);
+                const secondsLeft = order.entryTime + order.duration - now;
+                if (secondsLeft >= 0) {
+                    order.countdownSpan.textContent = `(${secondsLeft} с)`;
+                } else {
+                    order.countdownSpan.textContent = '';
+                }
             }
 
-            let profit = 0;
-            if ((direction === 'up' && currentPrice > entryPrice) || (direction === 'down' && currentPrice < entryPrice)) {
-                profit = stake * 0.8;
-            } else {
-                profit = -stake;
-            }
-
-            balance += stake + profit;
-            balanceDisplay.textContent = balance.toFixed(2);
-
-            const time = new Date().toLocaleTimeString();
-
-            tradeHistory.push({
-                time,
-                symbol,
-                direction,
-                entryPrice,
-                exitPrice: currentPrice,
-                stake,
-                profit
-            });
-
-            if (tradeHistory.length > 5) tradeHistory.shift();
+            updateCountdown();
+            order.countdownInterval = setInterval(() => {
+                updateCountdown();
+            }, 1000);
 
             saveState();
-            renderHistory();
-
-            // Удаляем сделку из открытых
-            openOrders = openOrders.filter(o => o !== order);
         }
 
-        loadSymbols();
-        renderHistory();
-    </script>
 
+        setInterval(() => {
+            const now = Math.floor(Date.now() / 1000);
+            openOrders.forEach(order => {
+                if (!order.resolved && now >= order.entryTime + order.duration) {
+                    const symbolData = allData[order.symbol];
+                    const closeCandle = symbolData.data.find(c => c.time === order.entryTime + order.duration);
+                    const closePrice = closeCandle ? closeCandle.close : symbolData.currentCandle.close;
+
+                    const priceDiff = closePrice - order.entryPrice;
+                    const percentChange = priceDiff / order.entryPrice;
+                    const finalAmount = order.direction === 'up' ? order.stake * (1 + percentChange) : order.stake * (1 - percentChange);
+                    const profit = finalAmount - order.stake;
+
+                    balance += finalAmount;
+                    balanceDisplay.textContent = balance.toFixed(2);
+                    order.resolved = true;
+                    setTimeout(() => chart.removeSeries(order.line), 2000);
+
+                    const timeString = new Date(order.entryTime * 1000).toLocaleTimeString();
+
+                    // Добавляем новую запись в историю и обрезаем, чтобы оставалось не больше 5
+                    tradeHistory.push({
+                        time: timeString,
+                        symbol: order.symbol,
+                        direction: order.direction,
+                        entryPrice: order.entryPrice,
+                        exitPrice: closePrice,
+                        stake: order.stake,
+                        profit,
+                    });
+                    if (tradeHistory.length > 5) {
+                        tradeHistory.shift(); // удаляем самую старую запись
+                    }
+
+                    // Обновляем DOM-элемент текущего ордера в истории
+                    const el = order.domElement;
+                    el.className = 'history-entry ' + (profit >= 0 ? 'profit' : 'loss');
+                    el.textContent = `${timeString} — ${order.symbol} ${order.direction === 'up' ? '🔼' : '🔽'} | вход: $${order.entryPrice.toFixed(2)} → $${closePrice.toFixed(2)} | ставка: $${order.stake.toFixed(2)} | ${profit >= 0 ? 'ПРИБЫЛЬ' : 'УБЫТОК'}: $${profit.toFixed(2)}`;
+
+                    saveState();
+                    renderHistory();
+                }
+            });
+        }, 1000);
+
+        document.getElementById('buyUp').addEventListener('click', () => placeOrder('up'));
+        document.getElementById('buyDown').addEventListener('click', () => placeOrder('down'));
+
+        renderHistory();
+        loadSymbols();
+
+
+
+        document.getElementById('reset-balance-btn').addEventListener('click', () => {
+            if (confirm('Вы уверены, что хотите сбросить баланс до 1000 USD?')) {
+                balance = 1000;
+                balanceDisplay.textContent = balance.toFixed(2);
+                localStorage.setItem('balance', balance.toFixed(2));
+                alert('Баланс сброшен до 1000 USD');
+            }
+        });
+    </script>
 
 </body>
 
