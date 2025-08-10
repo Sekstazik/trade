@@ -399,6 +399,7 @@
         }
 
         #controls {
+            position: absolute;
             top: 10px;
             left: 10px;
             z-index: 10;
@@ -421,6 +422,7 @@
         }
 
         #right-panel {
+            width: 300px;
             background-color: #111;
             border-left: 1px solid #333;
             padding: 10px;
@@ -503,6 +505,7 @@
 
         #balance-container {
             text-align: center;
+            width: 190px;
             gap: 12px;
             padding: 10px 15px;
             background-color: #111;
@@ -643,41 +646,39 @@
 
 
         <div id="main-app-content" style="display: none; height: calc(100vh - 110px);">
-            <div id="controls" style=" top: 10px; left: 10px; z-index: 10;">
-                <input type="text" id="symbolSearch" placeholder="Поиск..." />
-                <select id="symbol" style="width: 300px">
-                    <option>Загрузка...</option>
-                </select>
-
-                <select id="duration">
-                    <option value="60">1м</option>
-                    <option value="120">2м</option>
-                    <option value="300">5м</option>
-                </select>
-
-            </div>
-            <div style="display: flex; height: 50%;">
+            <div style="display: flex; height: 100%;">
                 <div id="left-panel" style="flex: 1; position: relative;">
+                    <div id="controls" style=" top: 10px; left: 10px; z-index: 10;">
+                        <input type="text" id="symbolSearch" placeholder="Поиск..." />
+                        <select id="symbol">
+                            <option>Загрузка...</option>
+                        </select>
 
+                        <label for="duration">Время:</label>
+                        <select id="duration">
+                            <option value="60">1м</option>
+                            <option value="120">2м</option>
+                            <option value="300">5м</option>
+                        </select>
+
+                    </div>
                     <div id="chart" style="width: 100%; height: 100%;"></div>
                 </div>
 
+                <div id="right-panel"
+                    style="width: 300px; background: #111; border-left: 1px solid #333; padding: 10px; display: flex; flex-direction: column; overflow-y: auto;">
+                    <div class="stake-container">
+                        <label for="stake" class="stake-label">Сумма сделки</label>
+                        <input type="number" id="stake" value="100" min="10" step="10" />
+                    </div>
+                    <div id="trade-buttons" style="margin-bottom: 10px; gap: 10px;">
+                        <button id="buyUp">Вверх</button>
+                        <button id="buyDown">Вниз</button>
+                    </div>
 
-            </div>
-
-            <div id="right-panel"
-                style=" background: #111; border-left: 1px solid #333; padding: 10px; display: flex; flex-direction: column; overflow-y: auto;">
-                <div class="stake-container">
-                    <label for="stake" class="stake-label">Сумма сделки</label>
-                    <input type="number" id="stake" value="100" min="10" step="10" />
-                </div>
-                <div id="trade-buttons" style="margin-bottom: 10px; gap: 10px;">
-                    <button id="buyUp">Вверх</button>
-                    <button id="buyDown">Вниз</button>
-                </div>
-
-                <div id="history" style="flex: 1; overflow-y: auto;">
-                    <div id="history-list"></div>
+                    <div id="history" style="flex: 1; overflow-y: auto;">
+                        <div id="history-list"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -686,6 +687,7 @@
 
 
     <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <script>
@@ -726,6 +728,29 @@
 
         let mode = 'login';
 
+        async function loadUserData(userId) {
+            try {
+                const doc = await db.collection('users').doc(userId).get();
+                if (doc.exists) {
+                    const data = doc.data();
+                    balance = data.balance ?? 1000;
+                    allData = data.chartData ?? {};
+                    tradeHistory = data.tradeHistory ?? [];
+                    balanceDisplay.textContent = balance.toFixed(2);
+                    renderHistory();
+                    saveState(); // чтобы локальное хранилище тоже обновилось
+                } else {
+                    // Если данных нет, инициализируем
+                    balance = 1000;
+                    allData = {};
+                    tradeHistory = [];
+                    saveUserData(userId, { balance, chartData: allData, tradeHistory });
+                }
+            } catch (error) {
+                console.error('Ошибка загрузки данных пользователя:', error);
+            }
+        }
+
         function updateUI(user) {
             const mainAppContent = document.getElementById('main-app-content');
 
@@ -736,10 +761,10 @@
                 dropdownMenu.classList.remove('show');
                 mainAppContent.style.display = 'block';
 
-                // ПЕРЕМЕСТИЛИ СЮДА
-                renderHistory();
-                loadSymbols(); // << Инициализация графика после входа
-
+                loadUserData(user.uid).then(() => {
+                    renderHistory();
+                    loadSymbols(); // инициализация графика после загрузки данных
+                });
             } else {
                 accountArea.style.display = 'none';
                 regLoginContainer.style.display = 'block';
@@ -883,65 +908,83 @@
 
         async function loadSymbols() {
             try {
-                // Загружаем всё параллельно
-                const [stocks, forex, crypto] = await Promise.all([
-                    fetch(`https://finnhub.io/api/v1/stock/symbol?exchange=US&token=${API_KEY}`).then(r => r.json()),
-                    fetch(`https://finnhub.io/api/v1/forex/symbol?exchange=OANDA&token=${API_KEY}`).then(r => r.json()),
-                    fetch(`https://finnhub.io/api/v1/crypto/symbol?exchange=BINANCE&token=${API_KEY}`).then(r => r.json())
+                // Запускаем запросы параллельно
+                const [resStocks, resForex, resCrypto] = await Promise.all([
+                    fetch(`https://finnhub.io/api/v1/stock/symbol?exchange=US&token=${API_KEY}`),
+                    fetch(`https://finnhub.io/api/v1/forex/symbol?exchange=OANDA&token=${API_KEY}`),
+                    fetch(`https://finnhub.io/api/v1/crypto/symbol?exchange=BINANCE&token=${API_KEY}`),
                 ]);
 
-                // Очищаем список и готовим пакет для вставки
+                // Получаем json из всех ответов параллельно
+                const [stockSymbols, forexSymbols, cryptoSymbols] = await Promise.all([
+                    resStocks.json(),
+                    resForex.json(),
+                    resCrypto.json()
+                ]);
+
                 symbolSelect.innerHTML = '';
+
+                // Объединяем все символы в один массив с типом
+                const allSymbols = [
+                    ...stockSymbols.map(({ symbol, description }) => ({ symbol, description, type: 'Акция' })),
+                    ...forexSymbols.map(({ symbol, description }) => ({ symbol, description, type: 'Валютная пара' })),
+                    ...cryptoSymbols.map(({ symbol, description }) => ({ symbol, description, type: 'Криптовалюта' })),
+                ];
+
+                // Добавляем в селект все сразу
                 const fragment = document.createDocumentFragment();
 
-                // Упрощённая функция добавления опций
-                const addOptions = (arr, type, min, max) => {
-                    arr.forEach(({ symbol, description }) => {
-                        const option = document.createElement('option');
-                        option.value = symbol;
-                        option.textContent = `${symbol} - ${description || type}`;
-                        fragment.appendChild(option);
-                        initialPriceMap[symbol] = Math.random() * (max - min) + min;
-                    });
-                };
+                allSymbols.forEach(({ symbol, description, type }) => {
+                    const option = document.createElement('option');
+                    option.value = symbol;
+                    option.textContent = `${symbol} - ${description || type}`;
+                    fragment.appendChild(option);
 
-                addOptions(stocks, 'Акция', 20, 220);
-                addOptions(forex, 'Валютная пара', 0.5, 2.5);
-                addOptions(crypto, 'Криптовалюта', 100, 1100);
+                    // Инициализируем цену для графика
+                    if (type === 'Акция') initialPriceMap[symbol] = Math.random() * 200 + 20;
+                    else if (type === 'Валютная пара') initialPriceMap[symbol] = Math.random() * 2 + 0.5;
+                    else if (type === 'Криптовалюта') initialPriceMap[symbol] = Math.random() * 1000 + 100;
+                });
 
-                // Вставляем всё разом
                 symbolSelect.appendChild(fragment);
 
-                // Поиск по символам
+                // Тут можно оставить поиск и прочее, без изменений
                 document.getElementById('symbolSearch').addEventListener('input', function () {
-                    const q = this.value.toLowerCase();
-                    for (let opt of symbolSelect.options) {
-                        opt.style.display = opt.textContent.toLowerCase().includes(q) ? '' : 'none';
+                    const query = this.value.toLowerCase();
+                    const options = symbolSelect.options;
+                    for (let i = 0; i < options.length; i++) {
+                        const text = options[i].textContent.toLowerCase();
+                        options[i].style.display = text.includes(query) ? '' : 'none';
                     }
                 });
 
-                // Инициализируем график
-                if (symbolSelect.options.length > 0) {
-                    initChart();
-                    startLiveChart(symbolSelect.value);
-                }
-
-                // Смена символа → перезапуск графика
+                initChart();
+                startLiveChart(symbolSelect.value);
                 symbolSelect.addEventListener('change', () => {
                     initChart();
                     startLiveChart(symbolSelect.value);
                 });
 
-            } catch (err) {
-                console.error('Ошибка при загрузке символов:', err);
-                symbolSelect.innerHTML = '<option>Ошибка загрузки данных</option>';
+            } catch (error) {
+                console.error('Ошибка при загрузке символов:', error);
+                symbolSelect.innerHTML = '<option>Ошибка загрузки</option>';
             }
         }
+
 
         function saveState() {
             localStorage.setItem('balance', balance.toFixed(2));
             localStorage.setItem('chartData', JSON.stringify(allData));
             localStorage.setItem('tradeHistory', JSON.stringify(tradeHistory));
+
+            const user = auth.currentUser;
+            if (user) {
+                saveUserData(user.uid, {
+                    balance,
+                    chartData: allData,
+                    tradeHistory
+                }).catch(err => console.error('Ошибка сохранения данных:', err));
+            }
         }
 
         function renderHistory() {
@@ -1178,6 +1221,14 @@
                 alert('Баланс сброшен до 1000 USD');
             }
         });
+    </script>
+
+    <script>
+        const db = firebase.firestore();
+
+        function saveUserData(userId, data) {
+            return db.collection('users').doc(userId).set(data, { merge: true });
+        }
     </script>
 
 </body>
