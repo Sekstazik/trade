@@ -738,13 +738,12 @@
                     tradeHistory = data.tradeHistory ?? [];
                     balanceDisplay.textContent = balance.toFixed(2);
                     renderHistory();
-                    saveState(); // чтобы локальное хранилище тоже обновилось
                 } else {
-                    // Если данных нет, инициализируем
+                    // создаём новый документ для пользователя
                     balance = 1000;
                     allData = {};
                     tradeHistory = [];
-                    saveUserData(userId, { balance, chartData: allData, tradeHistory });
+                    await saveUserData(userId, { balance, chartData: allData, tradeHistory });
                 }
             } catch (error) {
                 console.error('Ошибка загрузки данных пользователя:', error);
@@ -758,20 +757,19 @@
                 document.getElementById('user-email-text').textContent = user.email;
                 accountArea.style.display = 'block';
                 regLoginContainer.style.display = 'none';
-                dropdownMenu.classList.remove('show');
                 mainAppContent.style.display = 'block';
 
                 loadUserData(user.uid).then(() => {
                     renderHistory();
-                    loadSymbols(); // инициализация графика после загрузки данных
+                    loadSymbols();
                 });
             } else {
                 accountArea.style.display = 'none';
                 regLoginContainer.style.display = 'block';
-                dropdownMenu.classList.remove('show');
                 mainAppContent.style.display = 'none';
             }
         }
+
 
 
 
@@ -973,19 +971,22 @@
 
 
         function saveState() {
+            // локальное сохранение (быстро, но не для кросс-девайс)
             localStorage.setItem('balance', balance.toFixed(2));
             localStorage.setItem('chartData', JSON.stringify(allData));
             localStorage.setItem('tradeHistory', JSON.stringify(tradeHistory));
 
+            // синхронизация с Firebase
             const user = auth.currentUser;
             if (user) {
                 saveUserData(user.uid, {
                     balance,
                     chartData: allData,
                     tradeHistory
-                }).catch(err => console.error('Ошибка сохранения данных:', err));
+                }).catch(err => console.error('Ошибка сохранения данных в Firestore:', err));
             }
         }
+
 
         function renderHistory() {
             historyList.innerHTML = '';
