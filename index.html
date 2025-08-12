@@ -745,10 +745,9 @@
                     tradeHistory = [];
                     await saveUserData(userId, { balance, chartData: allData, tradeHistory });
                 }
-                balanceDisplay.textContent = balance.toFixed(2);
-                renderHistory();
             } catch (error) {
                 console.error('Ошибка загрузки данных пользователя:', error);
+                // Можно обработать ошибку, например, показать уведомление
             }
         }
 
@@ -775,15 +774,15 @@
             }
         }
 
-        auth.onAuthStateChanged(user => {
+        auth.onAuthStateChanged(async (user) => {
             if (user) {
-                loadUserData(user.uid).then(() => {
-                    balanceDisplay.textContent = balance.toFixed(2);
-                    renderHistory();
-                    loadSymbols();
-                });
+                loaderContainer.style.display = 'block'; // показываем загрузку
+                await loadUserData(user.uid);
+                balanceDisplay.textContent = balance.toFixed(2);
+                renderHistory();
+                loadSymbols();
+                loaderContainer.style.display = 'none'; // скрываем загрузку
             } else {
-                // Гость — использовать дефолтные данные
                 balance = 1000;
                 allData = {};
                 tradeHistory = [];
