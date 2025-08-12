@@ -422,6 +422,7 @@
         }
 
         #right-panel {
+            width: 300px;
             background-color: #111;
             border-left: 1px solid #333;
             padding: 10px;
@@ -504,6 +505,7 @@
 
         #balance-container {
             text-align: center;
+            width: 190px;
             gap: 12px;
             padding: 10px 15px;
             background-color: #111;
@@ -644,14 +646,15 @@
 
 
         <div id="main-app-content" style="display: none; height: calc(100vh - 110px);">
-            <div style="display: flex; height: 50%;">
+            <div style="display: flex; height: 100%;">
                 <div id="left-panel" style="flex: 1; position: relative;">
                     <div id="controls" style=" top: 10px; left: 10px; z-index: 10;">
                         <input type="text" id="symbolSearch" placeholder="Поиск..." />
-                        <select id="symbol" style="width: 300px">
+                        <select id="symbol">
                             <option>Загрузка...</option>
                         </select>
 
+                        <label for="duration">Время:</label>
                         <select id="duration">
                             <option value="60">1м</option>
                             <option value="120">2м</option>
@@ -662,22 +665,20 @@
                     <div id="chart" style="width: 100%; height: 100%;"></div>
                 </div>
 
+                <div id="right-panel"
+                    style="width: 300px; background: #111; border-left: 1px solid #333; padding: 10px; display: flex; flex-direction: column; overflow-y: auto;">
+                    <div class="stake-container">
+                        <label for="stake" class="stake-label">Сумма сделки</label>
+                        <input type="number" id="stake" value="100" min="10" step="10" />
+                    </div>
+                    <div id="trade-buttons" style="margin-bottom: 10px; gap: 10px;">
+                        <button id="buyUp">Вверх</button>
+                        <button id="buyDown">Вниз</button>
+                    </div>
 
-            </div>
-
-            <div id="right-panel"
-                style=" background: #111; border-left: 1px solid #333; padding: 10px; display: flex; flex-direction: column; overflow-y: auto;">
-                <div class="stake-container">
-                    <label for="stake" class="stake-label">Сумма сделки</label>
-                    <input type="number" id="stake" value="100" min="10" step="10" />
-                </div>
-                <div id="trade-buttons" style="margin-bottom: 10px; gap: 10px;">
-                    <button id="buyUp">Вверх</button>
-                    <button id="buyDown">Вниз</button>
-                </div>
-
-                <div id="history" style="flex: 1; overflow-y: auto;">
-                    <div id="history-list"></div>
+                    <div id="history" style="flex: 1; overflow-y: auto;">
+                        <div id="history-list"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -686,9 +687,12 @@
 
 
     <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script> <!-- если нужен auth -->
     <script>
+
         const firebaseConfig = {
             apiKey: "AIzaSyBC8yqtzenwdGa0g6f1vRt2OTwVAWj44n0",
             authDomain: "kroll-7e9fe.firebaseapp.com",
@@ -698,10 +702,11 @@
             appId: "1:760854621728:web:9837af479a6da599e71645",
             measurementId: "G-4RPNT5Y75R"
         };
-
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
-
+        const db = firebase.firestore();
+    </script>
+    <script>
         const loaderContainer = document.getElementById('loader-container');
         const loader = document.getElementById('loader');
         const accountArea = document.getElementById('account-area');
@@ -726,6 +731,28 @@
 
         let mode = 'login';
 
+        async function loadUserData(userId) {
+            try {
+                const doc = await db.collection('users').doc(userId).get();
+                if (doc.exists) {
+                    const data = doc.data();
+                    balance = data.balance ?? 1000;
+                    allData = data.chartData ?? {};
+                    tradeHistory = data.tradeHistory ?? [];
+                } else {
+                    balance = 1000;
+                    allData = {};
+                    tradeHistory = [];
+                    await saveUserData(userId, { balance, chartData: allData, tradeHistory });
+                }
+                balanceDisplay.textContent = balance.toFixed(2);
+                renderHistory();
+            } catch (error) {
+                console.error('Ошибка загрузки данных пользователя:', error);
+            }
+        }
+
+
         function updateUI(user) {
             const mainAppContent = document.getElementById('main-app-content');
 
@@ -736,10 +763,10 @@
                 dropdownMenu.classList.remove('show');
                 mainAppContent.style.display = 'block';
 
-                // ПЕРЕМЕСТИЛИ СЮДА
-                renderHistory();
-                loadSymbols(); // << Инициализация графика после входа
-
+                loadUserData(user.uid).then(() => {
+                    renderHistory();
+                    loadSymbols(); // инициализация графика после загрузки данных
+                });
             } else {
                 accountArea.style.display = 'none';
                 regLoginContainer.style.display = 'block';
@@ -748,7 +775,23 @@
             }
         }
 
-
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                loadUserData(user.uid).then(() => {
+                    balanceDisplay.textContent = balance.toFixed(2);
+                    renderHistory();
+                    loadSymbols();
+                });
+            } else {
+                // Гость — использовать дефолтные данные
+                balance = 1000;
+                allData = {};
+                tradeHistory = [];
+                balanceDisplay.textContent = balance.toFixed(2);
+                renderHistory();
+                loadSymbols();
+            }
+        });
 
         auth.onAuthStateChanged(updateUI);
 
@@ -871,9 +914,9 @@
         const historyList = document.getElementById('history-list');
         const chartElement = document.getElementById('chart');
 
-        let balance = parseFloat(localStorage.getItem('balance')) || 1000;
-        let allData = JSON.parse(localStorage.getItem('chartData')) || {};
-        let tradeHistory = JSON.parse(localStorage.getItem('tradeHistory')) || [];
+        let balance = 1000;
+        let allData = {};
+        let tradeHistory = [];
         let openOrders = [];
         let initialPriceMap = {};
 
@@ -883,28 +926,47 @@
 
         async function loadSymbols() {
             try {
-                const resStocks = await fetch(`https://finnhub.io/api/v1/stock/symbol?exchange=US&token=${API_KEY}`);
-                const stockSymbols = await resStocks.json();
+                // Запускаем запросы параллельно
+                const [resStocks, resForex, resCrypto] = await Promise.all([
+                    fetch(`https://finnhub.io/api/v1/stock/symbol?exchange=US&token=${API_KEY}`),
+                    fetch(`https://finnhub.io/api/v1/forex/symbol?exchange=OANDA&token=${API_KEY}`),
+                    fetch(`https://finnhub.io/api/v1/crypto/symbol?exchange=BINANCE&token=${API_KEY}`),
+                ]);
 
-                const resForex = await fetch(`https://finnhub.io/api/v1/forex/symbol?exchange=OANDA&token=${API_KEY}`);
-                const forexSymbols = await resForex.json();
-
-                const resCrypto = await fetch(`https://finnhub.io/api/v1/crypto/symbol?exchange=BINANCE&token=${API_KEY}`);
-                const cryptoSymbols = await resCrypto.json();
+                // Получаем json из всех ответов параллельно
+                const [stockSymbols, forexSymbols, cryptoSymbols] = await Promise.all([
+                    resStocks.json(),
+                    resForex.json(),
+                    resCrypto.json()
+                ]);
 
                 symbolSelect.innerHTML = '';
 
-                const stockFragment = document.createDocumentFragment();
-                stockSymbols.forEach(({ symbol, description }) => {
+                // Объединяем все символы в один массив с типом
+                const allSymbols = [
+                    ...stockSymbols.map(({ symbol, description }) => ({ symbol, description, type: 'Акция' })),
+                    ...forexSymbols.map(({ symbol, description }) => ({ symbol, description, type: 'Валютная пара' })),
+                    ...cryptoSymbols.map(({ symbol, description }) => ({ symbol, description, type: 'Криптовалюта' })),
+                ];
+
+                // Добавляем в селект все сразу
+                const fragment = document.createDocumentFragment();
+
+                allSymbols.forEach(({ symbol, description, type }) => {
                     const option = document.createElement('option');
                     option.value = symbol;
-                    option.textContent = `${symbol} - ${description || 'Акция'}`;
-                    stockFragment.appendChild(option);
-                    initialPriceMap[symbol] = Math.random() * 200 + 20;
+                    option.textContent = `${symbol} - ${description || type}`;
+                    fragment.appendChild(option);
+
+                    // Инициализируем цену для графика
+                    if (type === 'Акция') initialPriceMap[symbol] = Math.random() * 200 + 20;
+                    else if (type === 'Валютная пара') initialPriceMap[symbol] = Math.random() * 2 + 0.5;
+                    else if (type === 'Криптовалюта') initialPriceMap[symbol] = Math.random() * 1000 + 100;
                 });
-                symbolSelect.appendChild(stockFragment);
 
+                symbolSelect.appendChild(fragment);
 
+                // Тут можно оставить поиск и прочее, без изменений
                 document.getElementById('symbolSearch').addEventListener('input', function () {
                     const query = this.value.toLowerCase();
                     const options = symbolSelect.options;
@@ -914,45 +976,36 @@
                     }
                 });
 
-
-
-                const forexFragment = document.createDocumentFragment();
-                forexSymbols.forEach(({ symbol, description }) => {
-                    const option = document.createElement('option');
-                    option.value = symbol;
-                    option.textContent = `${symbol} - ${description || 'Валютная пара'}`;
-                    forexFragment.appendChild(option);
-                    initialPriceMap[symbol] = Math.random() * 2 + 0.5;
-                });
-                symbolSelect.appendChild(forexFragment);
-
-                const cryptoFragment = document.createDocumentFragment();
-                cryptoSymbols.forEach(({ symbol, description }) => {
-                    const option = document.createElement('option');
-                    option.value = symbol;
-                    option.textContent = `${symbol} - ${description || 'Криптовалюта'}`;
-                    cryptoFragment.appendChild(option);
-                    initialPriceMap[symbol] = Math.random() * 1000 + 100;
-                });
-                symbolSelect.appendChild(cryptoFragment);
-
                 initChart();
                 startLiveChart(symbolSelect.value);
                 symbolSelect.addEventListener('change', () => {
                     initChart();
                     startLiveChart(symbolSelect.value);
                 });
+
             } catch (error) {
                 console.error('Ошибка при загрузке символов:', error);
                 symbolSelect.innerHTML = '<option>Ошибка загрузки</option>';
             }
         }
 
+
         function saveState() {
+            // локалсторедж можно оставить, но он не обязателен
             localStorage.setItem('balance', balance.toFixed(2));
             localStorage.setItem('chartData', JSON.stringify(allData));
             localStorage.setItem('tradeHistory', JSON.stringify(tradeHistory));
+
+            const user = auth.currentUser;
+            if (user) {
+                saveUserData(user.uid, {
+                    balance,
+                    chartData: allData,
+                    tradeHistory
+                }).catch(err => console.error('Ошибка сохранения данных:', err));
+            }
         }
+
 
         function renderHistory() {
             historyList.innerHTML = '';
@@ -1188,6 +1241,12 @@
                 alert('Баланс сброшен до 1000 USD');
             }
         });
+    </script>
+
+    <script>
+        function saveUserData(userId, data) {
+            return db.collection('users').doc(userId).set(data, { merge: true });
+        }
     </script>
 
 </body>
