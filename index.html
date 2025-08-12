@@ -775,20 +775,39 @@
             }
         }
 
-        auth.onAuthStateChanged(async (user) => {
+        function subscribeUserData(userId) {
+            return db.collection('users').doc(userId)
+                .onSnapshot(doc => {
+                    if (doc.exists) {
+                        const data = doc.data();
+                        balance = data.balance || 1000;
+                        tradeHistory = data.tradeHistory || [];
+                        allData = data.chartData || {};
+
+                        balanceDisplay.textContent = balance.toFixed(2);
+                        renderHistory();
+                        initChart();
+                        startLiveChart(symbolSelect.value);
+                    }
+                }, err => {
+                    console.error('Ошибка подписки на данные пользователя:', err);
+                });
+        }
+
+        let unsubscribe = null;
+
+        auth.onAuthStateChanged(user => {
+            if (unsubscribe) unsubscribe();
             if (user) {
-                await loadUserData(user.uid);
+                unsubscribe = subscribeUserData(user.uid);
             } else {
                 balance = 1000;
-                allData = {};
                 tradeHistory = [];
+                allData = {};
+                updateUI(null);
             }
-
-            updateUI(user);
-            balanceDisplay.textContent = balance.toFixed(2);
-            renderHistory();
-            loadSymbols();
         });
+
 
 
         function switchMode(newMode) {
