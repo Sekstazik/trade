@@ -733,24 +733,27 @@
 
         async function loadUserData(userId) {
             try {
+                console.log('Загружаем данные пользователя:', userId);
                 const doc = await db.collection('users').doc(userId).get();
                 if (doc.exists) {
+                    console.log('Данные найдены:', doc.data());
                     const data = doc.data();
                     balance = data.balance ?? 1000;
                     allData = data.chartData ?? {};
                     tradeHistory = data.tradeHistory ?? [];
                 } else {
+                    console.log('Данные не найдены, создаём новые');
                     balance = 1000;
                     allData = {};
                     tradeHistory = [];
                     await saveUserData(userId, { balance, chartData: allData, tradeHistory });
                 }
-                balanceDisplay.textContent = balance.toFixed(2);
-                renderHistory();
             } catch (error) {
                 console.error('Ошибка загрузки данных пользователя:', error);
+                throw error;
             }
         }
+
 
 
         function updateUI(user) {
@@ -775,15 +778,19 @@
             }
         }
 
-        auth.onAuthStateChanged(user => {
+        auth.onAuthStateChanged(async (user) => {
             if (user) {
-                loadUserData(user.uid).then(() => {
+                loaderContainer.style.display = 'flex'; // показать загрузку
+                try {
+                    await loadUserData(user.uid);
                     balanceDisplay.textContent = balance.toFixed(2);
                     renderHistory();
                     loadSymbols();
-                });
+                } catch (error) {
+                    console.error('Ошибка при загрузке данных:', error);
+                }
+                loaderContainer.style.display = 'none'; // скрыть загрузку
             } else {
-                // Гость — использовать дефолтные данные
                 balance = 1000;
                 allData = {};
                 tradeHistory = [];
@@ -792,6 +799,7 @@
                 loadSymbols();
             }
         });
+
 
         auth.onAuthStateChanged(updateUI);
 
@@ -1244,8 +1252,12 @@
     </script>
 
     <script>
-        function saveUserData(userId, data) {
-            return db.collection('users').doc(userId).set(data, { merge: true });
+        async function saveUserData(userId, data) {
+            try {
+                await db.collection('users').doc(userId).set(data, { merge: true });
+            } catch (error) {
+                console.error('Ошибка сохранения данных пользователя:', error);
+            }
         }
     </script>
 
