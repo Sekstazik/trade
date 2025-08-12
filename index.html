@@ -731,23 +731,26 @@
 
         let mode = 'login';
 
-        let dataLoaded = false;
-
         async function loadUserData(userId) {
             try {
-                const docSnap = await db.collection('users').doc(userId).get();
-                if (docSnap.exists) {
-                    const data = docSnap.data();
+                const doc = await db.collection('users').doc(userId).get();
+                if (doc.exists) {
+                    const data = doc.data();
                     balance = data.balance ?? 1000;
                     allData = data.chartData ?? {};
                     tradeHistory = data.tradeHistory ?? [];
+                } else {
+                    balance = 1000;
+                    allData = {};
+                    tradeHistory = [];
+                    await saveUserData(userId, { balance, chartData: allData, tradeHistory });
                 }
-                dataLoaded = true;
-            } catch (err) {
-                console.error('Ошибка загрузки данных:', err);
+                balanceDisplay.textContent = balance.toFixed(2);
+                renderHistory();
+            } catch (error) {
+                console.error('Ошибка загрузки данных пользователя:', error);
             }
         }
-
 
 
         function updateUI(user) {
@@ -772,19 +775,15 @@
             }
         }
 
-        auth.onAuthStateChanged(async (user) => {
+        auth.onAuthStateChanged(user => {
             if (user) {
-                loaderContainer.style.display = 'flex';
-                try {
-                    await loadUserData(user.uid);
+                loadUserData(user.uid).then(() => {
                     balanceDisplay.textContent = balance.toFixed(2);
                     renderHistory();
                     loadSymbols();
-                } catch (error) {
-                    console.error('Ошибка при загрузке данных:', error);
-                }
-                loaderContainer.style.display = 'none';
+                });
             } else {
+                // Гость — использовать дефолтные данные
                 balance = 1000;
                 allData = {};
                 tradeHistory = [];
@@ -792,10 +791,23 @@
                 renderHistory();
                 loadSymbols();
             }
-
-            updateUI(user); // вызываем только один раз
         });
 
+        auth.onAuthStateChanged(updateUI);
+
+        btnLogin.onclick = () => {
+            if (mode === 'login') return;
+            mode = 'login';
+            btnLogin.classList.add('active');
+            btnRegister.classList.remove('active');
+            confirmPasswordContainer.style.display = 'none';
+            submitBtn.textContent = 'Войти';
+            alreadyRegisteredBtn.style.display = 'none';
+            emailInput.value = '';
+            passwordInput.value = '';
+            confirmPasswordInput.value = '';
+            resetPasswordFields();
+        };
 
         function switchMode(newMode) {
             mode = newMode;
@@ -979,8 +991,7 @@
 
 
         function saveState() {
-            if (!dataLoaded) return; // Не сохраняем, пока не загрузили с сервера
-
+            // локалсторедж можно оставить, но он не обязателен
             localStorage.setItem('balance', balance.toFixed(2));
             localStorage.setItem('chartData', JSON.stringify(allData));
             localStorage.setItem('tradeHistory', JSON.stringify(tradeHistory));
@@ -993,41 +1004,6 @@
                     tradeHistory
                 }).catch(err => console.error('Ошибка сохранения данных:', err));
             }
-        }
-
-
-
-
-        function subscribeUserData(userId) {
-            return db.collection('users').doc(userId)
-                .onSnapshot(doc => {
-                    if (doc.exists) {
-                        const data = doc.data();
-                        balance = data.balance ?? 1000;
-                        allData = data.chartData ?? {};
-                        tradeHistory = data.tradeHistory ?? [];
-                        balanceDisplay.textContent = balance.toFixed(2);
-                        renderHistory();
-                    }
-                });
-        }
-
-
-
-        import { onSnapshot, doc } from "firebase/firestore";
-
-        function listenUserData(userId) {
-            const userDoc = doc(db, 'users', userId);
-            onSnapshot(userDoc, (snapshot) => {
-                if (snapshot.exists()) {
-                    const data = snapshot.data();
-                    balance = data.balance ?? balance;
-                    tradeHistory = data.tradeHistory ?? [];
-                    allData = data.chartData ?? {};
-                    renderHistory();
-                    balanceDisplay.textContent = balance.toFixed(2);
-                }
-            });
         }
 
 
@@ -1268,12 +1244,8 @@
     </script>
 
     <script>
-        async function saveUserData(userId, data) {
-            try {
-                await db.collection('users').doc(userId).set(data, { merge: true });
-            } catch (error) {
-                console.error('Ошибка сохранения данных пользователя:', error);
-            }
+        function saveUserData(userId, data) {
+            return db.collection('users').doc(userId).set(data, { merge: true });
         }
     </script>
 
