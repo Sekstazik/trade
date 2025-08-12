@@ -687,12 +687,12 @@
 
 
     <!-- Firebase SDK -->
-
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script> <!-- если нужен auth -->
-    <script>
 
+
+    <script>
         const firebaseConfig = {
             apiKey: "AIzaSyBC8yqtzenwdGa0g6f1vRt2OTwVAWj44n0",
             authDomain: "kroll-7e9fe.firebaseapp.com",
@@ -702,11 +702,11 @@
             appId: "1:760854621728:web:9837af479a6da599e71645",
             measurementId: "G-4RPNT5Y75R"
         };
+
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const db = firebase.firestore();
-    </script>
-    <script>
+
         const loaderContainer = document.getElementById('loader-container');
         const loader = document.getElementById('loader');
         const accountArea = document.getElementById('account-area');
@@ -733,7 +733,7 @@
 
         async function loadUserData(userId) {
             try {
-                const doc = await db.collection('users').doc(userId).get();
+                const doc = await db.collection('users').doc(userId).get()
                 if (doc.exists) {
                     const data = doc.data();
                     balance = data.balance ?? 1000;
@@ -1247,6 +1247,7 @@
             return db.collection('users').doc(userId).set(data, { merge: true });
         }
     </script>
+
 
 </body>
 
