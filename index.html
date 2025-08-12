@@ -990,17 +990,31 @@
 
 
         function saveState() {
-            // локалсторедж можно оставить, но он не обязателен
+            if (!dataLoaded) return; // Не сохраняем, пока не загрузили с сервера
+
+            // Клонируем allData и обрезаем свечи
+            const trimmedData = {};
+            for (let symbol in allData) {
+                const symbolData = allData[symbol];
+                trimmedData[symbol] = {
+                    ...symbolData,
+                    data: symbolData.data.slice(-200) // последние 200 свечей
+                };
+            }
+
+            // Обрезаем историю сделок
+            const trimmedHistory = tradeHistory.slice(-20); // последние 20 сделок
+
             localStorage.setItem('balance', balance.toFixed(2));
-            localStorage.setItem('chartData', JSON.stringify(allData));
-            localStorage.setItem('tradeHistory', JSON.stringify(tradeHistory));
+            localStorage.setItem('chartData', JSON.stringify(trimmedData));
+            localStorage.setItem('tradeHistory', JSON.stringify(trimmedHistory));
 
             const user = auth.currentUser;
             if (user) {
                 saveUserData(user.uid, {
                     balance,
-                    chartData: allData,
-                    tradeHistory
+                    chartData: trimmedData,
+                    tradeHistory: trimmedHistory
                 }).catch(err => console.error('Ошибка сохранения данных:', err));
             }
         }
