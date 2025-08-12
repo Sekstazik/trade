@@ -775,39 +775,21 @@
             }
         }
 
-        auth.onAuthStateChanged(user => {
+        auth.onAuthStateChanged(async (user) => {
             if (user) {
-                loadUserData(user.uid).then(() => {
-                    balanceDisplay.textContent = balance.toFixed(2);
-                    renderHistory();
-                    loadSymbols();
-                });
+                await loadUserData(user.uid);
             } else {
-                // Гость — использовать дефолтные данные
                 balance = 1000;
                 allData = {};
                 tradeHistory = [];
-                balanceDisplay.textContent = balance.toFixed(2);
-                renderHistory();
-                loadSymbols();
             }
+
+            updateUI(user);
+            balanceDisplay.textContent = balance.toFixed(2);
+            renderHistory();
+            loadSymbols();
         });
 
-        auth.onAuthStateChanged(updateUI);
-
-        btnLogin.onclick = () => {
-            if (mode === 'login') return;
-            mode = 'login';
-            btnLogin.classList.add('active');
-            btnRegister.classList.remove('active');
-            confirmPasswordContainer.style.display = 'none';
-            submitBtn.textContent = 'Войти';
-            alreadyRegisteredBtn.style.display = 'none';
-            emailInput.value = '';
-            passwordInput.value = '';
-            confirmPasswordInput.value = '';
-            resetPasswordFields();
-        };
 
         function switchMode(newMode) {
             mode = newMode;
