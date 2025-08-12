@@ -687,10 +687,12 @@
 
 
     <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script> <!-- если нужен auth -->
     <script>
+
         const firebaseConfig = {
             apiKey: "AIzaSyBC8yqtzenwdGa0g6f1vRt2OTwVAWj44n0",
             authDomain: "kroll-7e9fe.firebaseapp.com",
@@ -700,10 +702,11 @@
             appId: "1:760854621728:web:9837af479a6da599e71645",
             measurementId: "G-4RPNT5Y75R"
         };
-
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
-
+        const db = firebase.firestore();
+    </script>
+    <script>
         const loaderContainer = document.getElementById('loader-container');
         const loader = document.getElementById('loader');
         const accountArea = document.getElementById('account-area');
@@ -736,10 +739,7 @@
                     balance = data.balance ?? 1000;
                     allData = data.chartData ?? {};
                     tradeHistory = data.tradeHistory ?? [];
-                    balanceDisplay.textContent = balance.toFixed(2);
-                    renderHistory();
                 } else {
-                    // создаём новый документ для пользователя
                     balance = 1000;
                     allData = {};
                     tradeHistory = [];
@@ -747,8 +747,10 @@
                 }
             } catch (error) {
                 console.error('Ошибка загрузки данных пользователя:', error);
+                // Можно обработать ошибку, например, показать уведомление
             }
         }
+
 
         function updateUI(user) {
             const mainAppContent = document.getElementById('main-app-content');
@@ -757,21 +759,38 @@
                 document.getElementById('user-email-text').textContent = user.email;
                 accountArea.style.display = 'block';
                 regLoginContainer.style.display = 'none';
+                dropdownMenu.classList.remove('show');
                 mainAppContent.style.display = 'block';
 
                 loadUserData(user.uid).then(() => {
                     renderHistory();
-                    loadSymbols();
+                    loadSymbols(); // инициализация графика после загрузки данных
                 });
             } else {
                 accountArea.style.display = 'none';
                 regLoginContainer.style.display = 'block';
+                dropdownMenu.classList.remove('show');
                 mainAppContent.style.display = 'none';
             }
         }
 
-
-
+        auth.onAuthStateChanged(async (user) => {
+            if (user) {
+                loaderContainer.style.display = 'block'; // показываем загрузку
+                await loadUserData(user.uid);
+                balanceDisplay.textContent = balance.toFixed(2);
+                renderHistory();
+                loadSymbols();
+                loaderContainer.style.display = 'none'; // скрываем загрузку
+            } else {
+                balance = 1000;
+                allData = {};
+                tradeHistory = [];
+                balanceDisplay.textContent = balance.toFixed(2);
+                renderHistory();
+                loadSymbols();
+            }
+        });
 
         auth.onAuthStateChanged(updateUI);
 
@@ -894,9 +913,9 @@
         const historyList = document.getElementById('history-list');
         const chartElement = document.getElementById('chart');
 
-        let balance = parseFloat(localStorage.getItem('balance')) || 1000;
-        let allData = JSON.parse(localStorage.getItem('chartData')) || {};
-        let tradeHistory = JSON.parse(localStorage.getItem('tradeHistory')) || [];
+        let balance = 1000;
+        let allData = {};
+        let tradeHistory = [];
         let openOrders = [];
         let initialPriceMap = {};
 
@@ -971,19 +990,18 @@
 
 
         function saveState() {
-            // локальное сохранение (быстро, но не для кросс-девайс)
+            // локалсторедж можно оставить, но он не обязателен
             localStorage.setItem('balance', balance.toFixed(2));
             localStorage.setItem('chartData', JSON.stringify(allData));
             localStorage.setItem('tradeHistory', JSON.stringify(tradeHistory));
 
-            // синхронизация с Firebase
             const user = auth.currentUser;
             if (user) {
                 saveUserData(user.uid, {
                     balance,
                     chartData: allData,
                     tradeHistory
-                }).catch(err => console.error('Ошибка сохранения данных в Firestore:', err));
+                }).catch(err => console.error('Ошибка сохранения данных:', err));
             }
         }
 
@@ -1225,8 +1243,6 @@
     </script>
 
     <script>
-        const db = firebase.firestore();
-
         function saveUserData(userId, data) {
             return db.collection('users').doc(userId).set(data, { merge: true });
         }
