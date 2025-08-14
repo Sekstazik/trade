@@ -693,27 +693,22 @@
         balanceDisplay.textContent = balance.toFixed(2);
 
         /* ---------------- Firestore sync helpers ---------------- */
-        function saveUserData(userId, data) {
-            return db.collection('users').doc(userId).set(data, { merge: true });
+        function saveUserData(userId) {
+            firebase.firestore().collection('users').doc(userId).set({
+                balance: balance,
+                tradeHistory: tradeHistory
+            });
         }
 
-        async function loadUserData(userId) {
-            try {
-                const doc = await db.collection('users').doc(userId).get();
+        function loadUserData(userId) {
+            firebase.firestore().collection('users').doc(userId).get().then(doc => {
                 if (doc.exists) {
-                    const data = doc.data();
-                    balance = data.balance ?? 1000;
-                    allData = data.chartData ?? {};
-                    tradeHistory = data.tradeHistory ?? [];
-                    balanceDisplay.textContent = balance.toFixed(2);
-                    renderHistory();
-                } else {
-                    balance = 1000; allData = {}; tradeHistory = [];
-                    await saveUserData(userId, { balance, chartData: allData, tradeHistory });
+                    balance = doc.data().balance;
+                    tradeHistory = doc.data().tradeHistory;
+                    renderBalance();
+                    renderTradeHistory();
                 }
-            } catch (error) {
-                console.error('Ошибка загрузки данных пользователя:', error);
-            }
+            });
         }
 
         function saveState() {
