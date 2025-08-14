@@ -694,41 +694,38 @@
 
         /* ---------------- Firestore sync helpers ---------------- */
         function saveUserData(userId) {
-            firebase.firestore().collection('users').doc(userId).set({
+            return firebase.firestore().collection('users').doc(userId).set({
                 balance: balance,
                 tradeHistory: tradeHistory
-            });
+            }, { merge: true }); // merge = не удаляем другие поля
         }
 
+
         let unsubscribeUserData = null;
+        let userDataLoaded = false; // чтобы не перетирать свежие данные
 
         function subscribeUserData(userId) {
-            if (unsubscribeUserData) unsubscribeUserData(); // отписываемся, если уже есть подписка
+            if (unsubscribeUserData) unsubscribeUserData(); // если уже подписаны — отписываемся
 
             unsubscribeUserData = firebase.firestore()
                 .collection('users')
                 .doc(userId)
                 .onSnapshot(doc => {
                     if (doc.exists) {
-                        // Данные из Firestore всегда будут главными
                         balance = doc.data().balance;
                         tradeHistory = doc.data().tradeHistory || [];
-
-                        renderBalance();
-                        renderTradeHistory();
                     } else {
-                        // Если данных нет — создаём стартовые в Firestore
                         balance = 1000;
                         tradeHistory = [];
-                        saveUserData(userId);
+                        saveUserData(userId); // создаём стартовые только один раз
                     }
+                    renderBalance();
+                    renderTradeHistory();
+                    userDataLoaded = true;
                 }, error => {
                     console.error("Ошибка подписки на данные пользователя:", error);
                 });
         }
-
-
-        let userDataLoaded = false;
 
         function loadUserData(userId) {
             return firebase.firestore().collection('users').doc(userId).get().then(doc => {
@@ -744,17 +741,18 @@
                 userDataLoaded = true; // данные готовы, можно сохранять
             });
         }
-
         function saveState() {
-            // локально
+            // локальное сохранение
             localStorage.setItem('balance', balance.toFixed(2));
             localStorage.setItem('chartData', JSON.stringify(allData));
             localStorage.setItem('tradeHistory', JSON.stringify(tradeHistory));
-            // в облако
+
+            // сохраняем в облако только если данные уже загружены
             const user = auth.currentUser;
-            if (user) {
-                saveUserData(user.uid, { balance, chartData: allData, tradeHistory })
-                    .catch(err => console.error('Ошибка сохранения данных в Firestore:', err));
+            if (user && userDataLoaded) {
+                saveUserData(user.uid).catch(err => {
+                    console.error('Ошибка сохранения данных в Firestore:', err);
+                });
             }
         }
 
@@ -767,7 +765,7 @@
                 regLoginContainer.style.display = 'none';
                 mainAppContent.style.display = 'block';
 
-                subscribeUserData(user.uid); // теперь вместо loadUserData
+                subscribeUserData(user.uid); // вместо loadUserData
                 renderHistory();
                 loadSymbols();
             } else {
@@ -775,9 +773,11 @@
                 regLoginContainer.style.display = 'block';
                 mainAppContent.style.display = 'none';
 
-                if (unsubscribeUserData) unsubscribeUserData(); // отписываемся при выходе
+                if (unsubscribeUserData) unsubscribeUserData();
+                userDataLoaded = false;
             }
         }
+
 
 
 
