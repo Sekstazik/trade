@@ -701,13 +701,36 @@
         }
 
         function loadUserData(userId) {
-            firebase.firestore().collection('users').doc(userId).get().then(doc => {
+            return firebase.firestore().collection('users').doc(userId).get().then(doc => {
                 if (doc.exists) {
                     balance = doc.data().balance;
-                    tradeHistory = doc.data().tradeHistory;
-                    renderBalance();
-                    renderTradeHistory();
+                    tradeHistory = doc.data().tradeHistory || [];
+                } else {
+                    // если в Firestore нет данных — создаём стартовые
+                    balance = 1000;
+                    tradeHistory = [];
+                    saveUserData(userId); // сохраняем стартовые только один раз
                 }
+                renderBalance();
+                renderTradeHistory();
+            });
+        }
+
+
+        let userDataLoaded = false;
+
+        function loadUserData(userId) {
+            return firebase.firestore().collection('users').doc(userId).get().then(doc => {
+                if (doc.exists) {
+                    balance = doc.data().balance;
+                    tradeHistory = doc.data().tradeHistory || [];
+                } else {
+                    balance = 1000;
+                    tradeHistory = [];
+                }
+                renderBalance();
+                renderTradeHistory();
+                userDataLoaded = true; // данные готовы, можно сохранять
             });
         }
 
@@ -732,6 +755,7 @@
                 accountArea.style.display = 'block';
                 regLoginContainer.style.display = 'none';
                 mainAppContent.style.display = 'block';
+
                 loadUserData(user.uid).then(() => {
                     renderHistory();
                     loadSymbols();
@@ -742,6 +766,7 @@
                 mainAppContent.style.display = 'none';
             }
         }
+
 
         auth.onAuthStateChanged(updateUI);
 
