@@ -702,10 +702,10 @@
 
 
         let unsubscribeUserData = null;
-        let userDataLoaded = false;
+        let userDataLoaded = false; // чтобы не перетирать свежие данные
 
         function subscribeUserData(userId) {
-            if (unsubscribeUserData) unsubscribeUserData(); // отписка от прошлой сессии
+            if (unsubscribeUserData) unsubscribeUserData(); // если уже подписаны — отписываемся
 
             unsubscribeUserData = firebase.firestore()
                 .collection('users')
@@ -717,9 +717,8 @@
                     } else {
                         balance = 1000;
                         tradeHistory = [];
-                        pushUserData(); // создаём стартовые данные
+                        saveUserData(userId); // создаём стартовые только один раз
                     }
-
                     renderBalance();
                     renderTradeHistory();
                     userDataLoaded = true;
@@ -727,7 +726,6 @@
                     console.error("Ошибка подписки на данные пользователя:", error);
                 });
         }
-
 
         function loadUserData(userId) {
             return firebase.firestore().collection('users').doc(userId).get().then(doc => {
@@ -750,30 +748,12 @@
             localStorage.setItem('tradeHistory', JSON.stringify(tradeHistory));
 
             // сохраняем в облако только если данные уже загружены
-            function pushUserData() {
-                const user = auth.currentUser;
-                if (user && userDataLoaded) {
-                    firebase.firestore().collection('users').doc(user.uid).set({
-                        balance: balance,
-                        tradeHistory: tradeHistory
-                    }, { merge: true }).catch(err => {
-                        console.error('Ошибка сохранения данных в Firestore:', err);
-                    });
-                }
+            const user = auth.currentUser;
+            if (user && userDataLoaded) {
+                saveUserData(user.uid).catch(err => {
+                    console.error('Ошибка сохранения данных в Firestore:', err);
+                });
             }
-        }
-
-
-        function updateBalance(newBalance) {
-            balance = newBalance;
-            renderBalance();
-            pushUserData(); // сразу отправляем в облако
-        }
-
-        function addTradeToHistory(trade) {
-            tradeHistory.push(trade);
-            renderTradeHistory();
-            pushUserData(); // сразу отправляем в облако
         }
 
         /* ---------------- Auth/UI ---------------- */
@@ -785,7 +765,7 @@
                 regLoginContainer.style.display = 'none';
                 mainAppContent.style.display = 'block';
 
-                subscribeUserData(user.uid); // теперь всегда подписка на живые данные
+                subscribeUserData(user.uid); // вместо loadUserData
                 renderHistory();
                 loadSymbols();
             } else {
@@ -797,7 +777,6 @@
                 userDataLoaded = false;
             }
         }
-
 
 
 
