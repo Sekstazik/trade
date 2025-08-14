@@ -1019,8 +1019,8 @@
             });
         }, 1000);
 
-        document.getElementById('buyUp').addEventListener('click', () => placeOrder('up'));
-        document.getElementById('buyDown').addEventListener('click', () => placeOrder('down'));
+        document.getElementById('buyUp').onclick = () => placeOrder('up');
+        document.getElementById('buyDown').onclick = () => placeOrder('down');
 
         renderHistory();
         loadSymbols();
