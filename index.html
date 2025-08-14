@@ -2,62 +2,636 @@
 <html lang="ru">
 
 <head>
-    <meta charset="UTF-8">
-    <title>Демо ставки</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Firebase Auth Demo</title>
+
+    <!-- Lightweight Charts (один раз) -->
+    <script src="https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
+
+    <!-- Firebase (в правильном порядке): app -> auth -> firestore -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 400px;
-            margin: auto;
-            padding: 20px;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
 
-        input,
-        button {
-            margin: 5px 0;
-            padding: 8px;
+        body::-webkit-scrollbar {
+            display: none;
+        }
+
+        body {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+            padding-top: 110px;
+        }
+
+        body,
+        html {
+            height: 100%;
+            background: #000;
+            font-family: sans-serif;
+            color: #fff;
+        }
+
+        header {
+            padding-right: 10px;
+            width: 100%;
+            background: #000;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1000;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logo img {
+            height: 100px;
+        }
+
+        #account-area {
+            position: relative;
+            font-size: 16px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        #account-email {
+            padding: 5px 10px;
+            border-radius: 4px;
+            transition: background-color .3s ease;
+        }
+
+        .dropdown {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background: radial-gradient(circle at top right, #111, #000);
+            border: 2px solid #00ffee;
+            border-radius: 16px;
+            overflow: hidden;
+            width: 280px;
+            box-shadow: 0 0 20px rgba(0, 255, 255, .3), 0 0 40px rgba(255, 0, 212, .2);
+            z-index: 1001;
+            opacity: 0;
+            transform: translateY(-12px) scale(.98);
+            pointer-events: none;
+            transition: opacity .3s ease, transform .3s ease;
+            font-size: 18px;
+        }
+
+        .dropdown.show {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            pointer-events: auto;
+        }
+
+        .dropdown-header {
+            padding: 20px;
+            background: #000;
+            font-weight: bold;
+            font-size: 19px;
+            border-bottom: 1px solid #333;
+            color: #00ffee;
+            text-align: center;
+            text-shadow: 0 0 5px #0ff, 0 0 10px #0ff;
+        }
+
+        .dropdown a {
+            display: flex;
+            align-items: center;
+            padding: 16px 22px;
+            color: #fff;
+            text-decoration: none;
+            font-size: 18px;
+            transition: background-color .3s ease, color .3s ease;
+            position: relative;
+        }
+
+        .dropdown-icon {
+            margin-right: 12px;
+            font-size: 22px;
+            color: #00ffee;
+            transition: color .3s ease;
+        }
+
+        .dropdown a:hover {
+            background-color: #1a1a1a;
+            color: #ff00d4;
+            transform: translateX(4px);
+        }
+
+        .dropdown a:hover .dropdown-icon {
+            color: #ff00d4;
+        }
+
+        #main-content {
+            position: relative;
+            width: 100%;
+            height: calc(100vh - 110px);
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #reg-login-container {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1000;
+            width: 320px;
+            background: #000;
+            padding: 30px;
+            border-radius: 12px;
+            box-sizing: border-box;
+        }
+
+        #reg-login-container::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            padding: 2px;
+            background: linear-gradient(270deg, #00ffea, #00bfff, #ff00d4, #00ffea);
+            background-size: 2000% 2000%;
+            animation: neon-border-only 12s ease-in-out infinite;
+            border-radius: 12px;
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            z-index: -1;
+        }
+
+        @keyframes neon-border-only {
+            0% {
+                background-position: 0% 50%
+            }
+
+            50% {
+                background-position: 100% 50%
+            }
+
+            100% {
+                background-position: 0% 50%
+            }
+        }
+
+        input {
+            width: 100%;
+            padding: 10px 40px 10px 10px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            background: #222;
+            color: #fff;
+        }
+
+        .password-container {
+            position: relative;
             width: 100%;
         }
 
-        .bet-btn {
-            background: purple;
-            color: white;
+        button,
+        .mode-buttons button {
+            width: 100%;
+            padding: 10px;
+            background: linear-gradient(90deg, #00ffea, #00bfff, #ff00d4);
+            background-size: 200% 200%;
+            color: #fff;
             border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            transition: background-position 3s ease infinite;
+            animation: gradientShift 6s ease infinite;
+        }
+
+        .mode-buttons {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            gap: 10px;
+        }
+
+        .mode-buttons button {
+            width: 50%;
+            margin-top: 0;
+            opacity: .5;
+            transition: opacity .3s ease;
+        }
+
+        .mode-buttons button.active {
+            opacity: 1;
+            box-shadow: 0 0 10px #ff00d4;
+        }
+
+        #loader-container {
+            position: fixed;
+            inset: 0;
+            background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+
+        #loader {
+            width: 250px;
+            animation: pulse 1.5s ease-in-out infinite;
+            transition: opacity 1s ease;
+        }
+
+        .neon-line {
+            position: fixed;
+            top: 100px;
+            left: 0;
+            z-index: 500;
+            height: 1px;
+            width: 100%;
+            background: linear-gradient(270deg, #00ffea, #00bfff, #ff00d4, #00ffea);
+            background-size: 200% 100%;
+            animation: neon-flow 10s linear infinite;
+            filter: drop-shadow(0 0 6px #00fff7) drop-shadow(0 0 10px #ff00d4);
+        }
+
+        .checkbox-wrapper {
+            margin-top: 10px;
+            display: flex;
+            justify-content: flex-start;
+        }
+
+        .neon-checkbox-label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            font-size: 14px;
+            color: #fff;
+            position: relative;
+            padding-left: 30px;
+            user-select: none;
+        }
+
+        .neon-checkbox-label input[type="checkbox"] {
+            position: absolute;
+            opacity: 0;
             cursor: pointer;
         }
 
-        .logout-btn {
-            background: red;
-            color: white;
-            border: none;
+        .custom-checkbox {
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            height: 18px;
+            width: 18px;
+            background-color: #111;
+            border: 2px solid #0ff;
+            border-radius: 4px;
+            box-shadow: 0 0 5px #0ff, 0 0 10px #0ff3;
+            transition: background-color .2s, box-shadow .3s;
+        }
+
+        .neon-checkbox-label input:checked~.custom-checkbox {
+            background-color: #00ffee;
+            box-shadow: 0 0 8px #0ff, 0 0 16px #0ff;
+        }
+
+        .checkbox-text {
+            margin-left: 8px;
+        }
+
+        @keyframes neon-flow {
+            0% {
+                background-position: 0% 50%
+            }
+
+            100% {
+                background-position: 100% 50%
+            }
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+                opacity: 1
+            }
+
+            50% {
+                transform: scale(1.1);
+                opacity: .7
+            }
+
+            100% {
+                transform: scale(1);
+                opacity: 1
+            }
+        }
+
+        @keyframes gradientShift {
+            0% {
+                background-position: 0% 50%
+            }
+
+            50% {
+                background-position: 100% 50%
+            }
+
+            100% {
+                background-position: 0% 50%
+            }
+        }
+
+        #left-panel {
+            flex: 1;
+            position: relative;
+        }
+
+        #controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 10;
+        }
+
+        select,
+        button,
+        input {
+            padding: 5px 10px;
+            font-size: 16px;
+            background-color: #111;
+            color: #fff;
+            border: 1px solid #444;
+            border-radius: 4px;
+        }
+
+        #chart {
+            width: 100%;
+            flex: 1;
+        }
+
+        #right-panel {
+            width: 300px;
+            background: #111;
+            border-left: 1px solid #333;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        #trade-buttons {
+            margin-bottom: 10px;
+            gap: 10px;
+        }
+
+        #history {
+            flex: 1;
+            overflow-y: auto;
+            padding-top: 10px;
+            color: #fff;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+
+        #history::-webkit-scrollbar {
+            display: none;
+        }
+
+        .history-entry {
+            background: #1a1a1a;
+            padding: 12px 14px;
+            margin-bottom: 10px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0, 255, 255, .1);
+            transition: transform .2s ease, box-shadow .2s ease;
+            font-size: 14px;
+            line-height: 1.6;
+            white-space: pre-line;
+            border-left: 4px solid transparent;
+        }
+
+        .history-entry:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 255, 255, .2);
+        }
+
+        .history-entry.profit {
+            border-left-color: #00ff95;
+            color: #00ff95;
+        }
+
+        .history-entry.loss {
+            border-left-color: #ff3b3b;
+            color: #ff3b3b;
+        }
+
+        .history-entry.pending {
+            border-left-color: #ffc107;
+            color: #ffc107;
+        }
+
+        .history-entry span {
+            display: block;
+            font-size: 12px;
+            color: #aaa;
+            margin-top: 6px;
+        }
+
+        .account {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            position: relative;
+        }
+
+        #balance-container {
+            text-align: center;
+            width: 190px;
+            gap: 12px;
+            padding: 10px 15px;
+            background: #111;
+            border: 1px solid #0ff;
+            border-radius: 8px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 15px;
+            color: #0ff;
+            box-shadow: 0 0 10px #0ff3;
+        }
+
+        .styled-btn {
+            margin: 0;
+            background: transparent;
+            color: #fff;
+            border: 1px solid #0ff;
+            padding: 6px 12px;
+            font-size: 13px;
+            border-radius: 6px;
             cursor: pointer;
+            transition: all .2s ease-in-out;
+        }
+
+        .styled-btn:hover {
+            background-color: #0ff;
+            color: #000;
+            box-shadow: 0 0 5px #0ff;
+        }
+
+        .balance-text {
+            font-weight: bold;
+        }
+
+        .stake-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .stake-label {
+            font-size: 16px;
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 8px;
+        }
+
+        #stake {
+            width: 80%;
+            max-width: 200px;
+            padding: 10px;
+            font-size: 16px;
+            text-align: center;
+            background: #1a1a1a;
+            border: 1px solid #444;
+            border-radius: 6px;
+            color: #fff;
+            transition: border-color .3s ease;
+        }
+
+        #stake:focus {
+            outline: none;
+            border-color: #0ff;
         }
     </style>
 </head>
 
 <body>
-    <h2 id="status">Вход / Регистрация</h2>
-    <div id="auth-section">
-        <input id="email" placeholder="Email">
-        <input id="password" type="password" placeholder="Пароль">
-        <button onclick="login()">Войти</button>
-        <button onclick="register()">Регистрация</button>
+    <!-- Loader -->
+    <div id="loader-container">
+        <img id="loader" src="./img/4ef48648-8af7-4a7b-b018-099ae1e4215d.png" alt="Загрузка...">
     </div>
 
-    <div id="app-section" style="display:none;">
-        <h3>Баланс: <span id="balance">0</span></h3>
-        <button class="bet-btn" onclick="placeBet()">Сделать ставку</button>
-        <button class="logout-btn" onclick="logout()">Выйти</button>
-        <h4>История ставок:</h4>
-        <ul id="history"></ul>
-    </div>
+    <!-- Header -->
+    <header>
+        <div class="logo">
+            <img src="./img/4ef48648-8af7-4a7b-b018-099ae1e4215d.png" alt="Логотип">
+        </div>
+        <div id="account-area" style="display:none;">
+            <div id="account-header" style="display:flex; align-items:center; gap:12px;">
+                <div id="balance-container">
+                    <button id="reset-balance-btn" class="styled-btn">⟲ Сброс</button>
+                    <div class="balance-text">Баланс: <span id="balance">1000</span> USD</div>
+                </div>
+                <span id="account-email">
+                    <img src="./img/neonovaya-avatarka-krolika.jpg" alt="Иконка пользователя"
+                        style="width:50px; height:50px; border-radius:25px; border:solid 1px;">
+                </span>
+            </div>
 
-    <!-- Firebase -->
-    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+            <div class="dropdown" id="dropdown-menu">
+                <div class="dropdown-header"><span id="user-email-text">user@example.com</span></div>
+                <a href="#"><span class="dropdown-icon">👤</span> Профиль</a>
+                <a href="#"><span class="dropdown-icon">💳</span> Пополнить</a>
+                <a href="#"><span class="dropdown-icon">💸</span> Вывести</a>
+                <a href="#" id="logout-link"><span class="dropdown-icon">🚪</span> Выйти</a>
+            </div>
+        </div>
+    </header>
+    <div class="neon-line"></div>
+
+    <!-- Main Content -->
+    <div id="main-content">
+        <div id="reg-login-container">
+            <div class="mode-buttons">
+                <button id="btn-login" class="active">Войти</button>
+                <button id="btn-register">Регистрация</button>
+            </div>
+
+            <input type="email" id="email" placeholder="Email" autocomplete="username" />
+            <div class="password-container">
+                <input type="password" id="password" placeholder="Пароль" autocomplete="current-password" />
+            </div>
+            <div class="password-container" style="display:none;" id="confirm-password-container">
+                <input type="password" id="confirm-password" placeholder="Подтвердите пароль"
+                    autocomplete="new-password" />
+            </div>
+
+            <div class="checkbox-wrapper">
+                <label class="neon-checkbox-label">
+                    <input type="checkbox" id="show-passwords-checkbox" />
+                    <span class="custom-checkbox"></span>
+                    <span class="checkbox-text">Показать пароли</span>
+                </label>
+            </div>
+
+            <button id="submit-btn">Войти</button>
+            <button id="already-registered-btn" style="display:none;">Уже зарегистрирован</button>
+        </div>
+
+        <div id="main-app-content" style="display:none; height:calc(100vh - 110px);">
+            <div style="display:flex; height:100%;">
+                <div id="left-panel" style="flex:1; position:relative;">
+                    <div id="controls" style="top:10px; left:10px; z-index:10;">
+                        <input type="text" id="symbolSearch" placeholder="Поиск..." />
+                        <select id="symbol">
+                            <option>Загрузка...</option>
+                        </select>
+
+                        <label for="duration">Время:</label>
+                        <select id="duration">
+                            <option value="60">1м</option>
+                            <option value="120">2м</option>
+                            <option value="300">5м</option>
+                        </select>
+                    </div>
+                    <div id="chart" style="width:100%; height:100%;"></div>
+                </div>
+
+                <div id="right-panel"
+                    style="width:300px; background:#111; border-left:1px solid #333; padding:10px; display:flex; flex-direction:column; overflow-y:auto;">
+                    <div class="stake-container">
+                        <label for="stake" class="stake-label">Сумма сделки</label>
+                        <input type="number" id="stake" value="100" min="10" step="10" />
+                    </div>
+                    <div id="trade-buttons" style="margin-bottom:10px; gap:10px;">
+                        <button id="buyUp">Вверх</button>
+                        <button id="buyDown">Вниз</button>
+                    </div>
+                    <div id="history" style="flex:1; overflow-y:auto;">
+                        <div id="history-list"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script>
+        /* ---------------- Firebase init ---------------- */
         const firebaseConfig = {
             apiKey: "AIzaSyD_BbeGYrJ1EVg9cPjjj-XmvcwO9cIIMec",
             authDomain: "trade-14bf9.firebaseapp.com",
@@ -71,108 +645,397 @@
 
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
-        const db = firebase.firestore();
+        const db = firebase.firestore(); // доступен сразу
 
-        let currentUser = null;
+        /* ---------------- UI refs ---------------- */
+        const loaderContainer = document.getElementById('loader-container');
+        const loader = document.getElementById('loader');
+        const accountArea = document.getElementById('account-area');
+        const accountEmail = document.getElementById('account-email');
+        const dropdownMenu = document.getElementById('dropdown-menu');
+        const regLoginContainer = document.getElementById('reg-login-container');
+        const btnLogin = document.getElementById('btn-login');
+        const btnRegister = document.getElementById('btn-register');
+        const submitBtn = document.getElementById('submit-btn');
+        const alreadyRegisteredBtn = document.getElementById('already-registered-btn');
 
-        // Отслеживаем состояние авторизации
-        auth.onAuthStateChanged(async (user) => {
-            if (user) {
-                currentUser = user;
-                document.getElementById('auth-section').style.display = 'none';
-                document.getElementById('app-section').style.display = 'block';
-                document.getElementById('status').textContent = 'Добро пожаловать!';
+        const emailInput = document.getElementById('email');
+        const passwordInput = document.getElementById('password');
+        const confirmPasswordInput = document.getElementById('confirm-password');
+        const confirmPasswordContainer = document.getElementById('confirm-password-container');
+        const logoutLink = document.getElementById('logout-link');
 
-                const userRef = db.collection('users').doc(user.uid);
-                const snap = await userRef.get();
+        setTimeout(() => {
+            loader.style.opacity = 0;
+            setTimeout(() => loaderContainer.style.display = 'none', 1000);
+        }, 1500);
 
-                if (!snap.exists) {
-                    // Новый пользователь — стартовый баланс 100
-                    await userRef.set({ balance: 100, history: [] });
-                    updateUI({ balance: 100, history: [] });
+        let mode = 'login';
+
+        /* ---------------- Trading state ---------------- */
+        const API_KEY = 'd288dk9r01qr2iav9f9gd288dk9r01qr2iav9fa0';
+
+        const symbolSelect = document.getElementById('symbol');
+        const balanceDisplay = document.getElementById('balance');
+        const stakeInput = document.getElementById('stake');
+        const durationSelect = document.getElementById('duration');
+        const historyList = document.getElementById('history-list');
+        const chartElement = document.getElementById('chart');
+
+        let balance = parseFloat(localStorage.getItem('balance')) || 1000;
+        let allData = JSON.parse(localStorage.getItem('chartData')) || {};
+        let tradeHistory = JSON.parse(localStorage.getItem('tradeHistory')) || [];
+        let openOrders = [];
+        let initialPriceMap = {};
+
+        let chart, candleSeries, updateInterval;
+
+        balanceDisplay.textContent = balance.toFixed(2);
+
+        /* ---------------- Firestore sync helpers ---------------- */
+        function saveUserData(userId, data) {
+            return db.collection('users').doc(userId).set(data, { merge: true });
+        }
+
+        async function loadUserData(userId) {
+            try {
+                const doc = await db.collection('users').doc(userId).get();
+                if (doc.exists) {
+                    const data = doc.data();
+                    balance = data.balance ?? 1000;
+                    allData = data.chartData ?? {};
+                    tradeHistory = data.tradeHistory ?? [];
+                    balanceDisplay.textContent = balance.toFixed(2);
+                    renderHistory();
                 } else {
-                    // Просто используем существующие данные
-                    const data = snap.data();
-                    // Если balance нет, установим 100
-                    if (data.balance == null) data.balance = 100;
-                    if (!Array.isArray(data.history)) data.history = [];
-                    updateUI(data);
+                    balance = 1000; allData = {}; tradeHistory = [];
+                    await saveUserData(userId, { balance, chartData: allData, tradeHistory });
                 }
+            } catch (error) {
+                console.error('Ошибка загрузки данных пользователя:', error);
+            }
+        }
+
+        function saveState() {
+            // локально
+            localStorage.setItem('balance', balance.toFixed(2));
+            localStorage.setItem('chartData', JSON.stringify(allData));
+            localStorage.setItem('tradeHistory', JSON.stringify(tradeHistory));
+            // в облако
+            const user = auth.currentUser;
+            if (user) {
+                saveUserData(user.uid, { balance, chartData: allData, tradeHistory })
+                    .catch(err => console.error('Ошибка сохранения данных в Firestore:', err));
+            }
+        }
+
+        /* ---------------- Auth/UI ---------------- */
+        function updateUI(user) {
+            const mainAppContent = document.getElementById('main-app-content');
+            if (user) {
+                document.getElementById('user-email-text').textContent = user.email;
+                accountArea.style.display = 'block';
+                regLoginContainer.style.display = 'none';
+                mainAppContent.style.display = 'block';
+                loadUserData(user.uid).then(() => {
+                    renderHistory();
+                    loadSymbols();
+                });
             } else {
-                currentUser = null;
-                document.getElementById('auth-section').style.display = 'block';
-                document.getElementById('app-section').style.display = 'none';
-                document.getElementById('status').textContent = 'Вход / Регистрация';
+                accountArea.style.display = 'none';
+                regLoginContainer.style.display = 'block';
+                mainAppContent.style.display = 'none';
+            }
+        }
+
+        auth.onAuthStateChanged(updateUI);
+
+        function switchMode(newMode) {
+            mode = newMode;
+            btnLogin.classList.toggle('active', newMode === 'login');
+            btnRegister.classList.toggle('active', newMode === 'register');
+            confirmPasswordContainer.style.display = newMode === 'register' ? 'block' : 'none';
+            submitBtn.textContent = newMode === 'register' ? 'Зарегистрироваться' : 'Войти';
+            alreadyRegisteredBtn.style.display = newMode === 'register' ? 'block' : 'none';
+            emailInput.value = '';
+            passwordInput.value = '';
+            confirmPasswordInput.value = '';
+        }
+
+        btnLogin.onclick = () => switchMode('login');
+        btnRegister.onclick = () => switchMode('register');
+        alreadyRegisteredBtn.onclick = () => btnLogin.click();
+
+        submitBtn.onclick = () => {
+            const email = emailInput.value.trim();
+            const password = passwordInput.value.trim();
+            if (!email || !password) return alert('Пожалуйста, заполните все обязательные поля.');
+            if (mode === 'register') {
+                const confirmPassword = confirmPasswordInput.value.trim();
+                if (password !== confirmPassword) return alert('Пароли не совпадают!');
+                auth.createUserWithEmailAndPassword(email, password).catch(err => alert(err.message));
+            } else {
+                auth.signInWithEmailAndPassword(email, password).catch(err => alert(err.message));
+            }
+        };
+
+        logoutLink.onclick = (e) => { e.preventDefault(); auth.signOut(); };
+
+        accountEmail.onclick = (e) => { e.stopPropagation(); dropdownMenu.classList.toggle('show'); };
+        document.addEventListener('click', () => dropdownMenu.classList.remove('show'));
+
+        document.getElementById('show-passwords-checkbox').addEventListener('change', (e) => {
+            const type = e.target.checked ? 'text' : 'password';
+            ['password', 'confirm-password'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.type = type;
+            });
+        });
+
+        /* ---------------- Trading logic ---------------- */
+        async function loadSymbols() {
+            try {
+                const [resStocks, resForex, resCrypto] = await Promise.all([
+                    fetch(`https://finnhub.io/api/v1/stock/symbol?exchange=US&token=${API_KEY}`),
+                    fetch(`https://finnhub.io/api/v1/forex/symbol?exchange=OANDA&token=${API_KEY}`),
+                    fetch(`https://finnhub.io/api/v1/crypto/symbol?exchange=BINANCE&token=${API_KEY}`),
+                ]);
+                const [stockSymbols, forexSymbols, cryptoSymbols] = await Promise.all([
+                    resStocks.json(), resForex.json(), resCrypto.json()
+                ]);
+
+                symbolSelect.innerHTML = '';
+                const allSymbols = [
+                    ...stockSymbols.map(({ symbol, description }) => ({ symbol, description, type: 'Акция' })),
+                    ...forexSymbols.map(({ symbol, description }) => ({ symbol, description, type: 'Валютная пара' })),
+                    ...cryptoSymbols.map(({ symbol, description }) => ({ symbol, description, type: 'Криптовалюта' })),
+                ];
+
+                const fragment = document.createDocumentFragment();
+                allSymbols.forEach(({ symbol, description, type }) => {
+                    const option = document.createElement('option');
+                    option.value = symbol;
+                    option.textContent = `${symbol} - ${description || type}`;
+                    fragment.appendChild(option);
+
+                    if (type === 'Акция') initialPriceMap[symbol] = Math.random() * 200 + 20;
+                    else if (type === 'Валютная пара') initialPriceMap[symbol] = Math.random() * 2 + 0.5;
+                    else if (type === 'Криптовалюта') initialPriceMap[symbol] = Math.random() * 1000 + 100;
+                });
+                symbolSelect.appendChild(fragment);
+
+                // Поиск по списку
+                const search = document.getElementById('symbolSearch');
+                if (!search._attached) {
+                    search.addEventListener('input', function () {
+                        const q = this.value.toLowerCase();
+                        const options = symbolSelect.options;
+                        for (let i = 0; i < options.length; i++) {
+                            const text = options[i].textContent.toLowerCase();
+                            options[i].style.display = text.includes(q) ? '' : 'none';
+                        }
+                    });
+                    search._attached = true;
+                }
+
+                initChart();
+                startLiveChart(symbolSelect.value);
+                symbolSelect.onchange = () => { initChart(); startLiveChart(symbolSelect.value); };
+            } catch (error) {
+                console.error('Ошибка при загрузке символов:', error);
+                symbolSelect.innerHTML = '<option>Ошибка загрузки</option>';
+            }
+        }
+
+        function renderHistory() {
+            historyList.innerHTML = '';
+            const recentHistory = tradeHistory.slice(-5).reverse();
+            recentHistory.forEach(({ time, symbol, direction, entryPrice, exitPrice, stake, profit }) => {
+                const div = document.createElement('div');
+                div.className = 'history-entry ' + (profit >= 0 ? 'profit' : 'loss');
+                div.textContent = `${time} — ${symbol} ${direction === 'up' ? '🔼' : '🔽'} | вход: $${entryPrice.toFixed(2)} → $${exitPrice.toFixed(2)} | ставка: $${stake.toFixed(2)} | ${profit >= 0 ? 'ПРИБЫЛЬ' : 'УБЫТОК'}: $${profit.toFixed(2)}`;
+                historyList.appendChild(div);
+            });
+        }
+
+        function initChart() {
+            if (chart) chart.remove();
+            chart = LightweightCharts.createChart(chartElement, {
+                layout: { background: { color: '#000' }, textColor: '#ccc' },
+                grid: { vertLines: { color: '#222' }, horzLines: { color: '#222' } },
+                timeScale: { borderColor: '#555', timeVisible: true, secondsVisible: true, rightOffset: 5 },
+                rightPriceScale: { scaleMargins: { top: 0.1, bottom: 0.1 }, borderColor: '#555' },
+            });
+            candleSeries = chart.addCandlestickSeries({
+                upColor: '#26a69a', downColor: '#ef5350',
+                borderUpColor: '#26a69a', borderDownColor: '#ef5350',
+                wickUpColor: '#26a69a', wickDownColor: '#ef5350', thinBars: false,
+            });
+        }
+
+        function startLiveChart(symbol) {
+            clearInterval(updateInterval);
+            const now = Math.floor(Date.now() / 1000);
+
+            if (!allData[symbol]) {
+                const basePrice = initialPriceMap[symbol] || 100;
+                const candles = [];
+                let previousClose = basePrice;
+
+                for (let i = 240; i > 0; i--) { // 240 мин назад (4 часа), шаг 1 мин
+                    const time = now - i * 60;
+                    const open = previousClose;
+                    const close = open + (Math.random() - 0.5) * 2;
+                    const high = Math.max(open, close) + Math.random();
+                    const low = Math.min(open, close) - Math.random();
+
+                    candles.push({ time, open, high, low, close });
+                    previousClose = close;
+                }
+
+                const lastCandle = candles[candles.length - 1];
+                allData[symbol] = {
+                    lastTime: lastCandle.time,
+                    lastPrice: lastCandle.close,
+                    currentCandle: lastCandle,
+                    data: candles,
+                };
+            }
+
+            const symbolData = allData[symbol];
+            candleSeries.setData(symbolData.data);
+
+            updateInterval = setInterval(() => {
+                const currentTime = Math.floor(Date.now() / 1000);
+                const newPrice = symbolData.lastPrice + (Math.random() - 0.5) * 2;
+
+                if (currentTime !== symbolData.lastTime) {
+                    const volatility = Math.random() * 1.5 + 0.2;
+                    symbolData.currentCandle = {
+                        time: currentTime,
+                        open: symbolData.lastPrice,
+                        close: newPrice,
+                        high: Math.max(symbolData.lastPrice, newPrice) + Math.random() * volatility,
+                        low: Math.min(symbolData.lastPrice, newPrice) - Math.random() * volatility,
+                    };
+                    symbolData.data.push(symbolData.currentCandle);
+                    candleSeries.update({ ...symbolData.currentCandle });
+                    symbolData.lastTime = currentTime;
+                } else {
+                    symbolData.currentCandle.close = newPrice;
+                    symbolData.currentCandle.high = Math.max(symbolData.currentCandle.high, newPrice);
+                    symbolData.currentCandle.low = Math.min(symbolData.currentCandle.low, newPrice);
+                    candleSeries.update({ ...symbolData.currentCandle });
+                }
+
+                symbolData.lastPrice = newPrice;
+                saveState();
+            }, 1000);
+        }
+
+        function placeOrder(direction) {
+            const symbol = symbolSelect.value;
+            const duration = parseInt(durationSelect.value);
+            const symbolData = allData[symbol];
+            if (!symbolData?.currentCandle) return;
+
+            const stake = parseFloat(stakeInput.value);
+            if (isNaN(stake) || stake <= 0) return alert('Введите корректную сумму сделки');
+            if (balance < stake) return alert('Недостаточно средств');
+
+            balance -= stake;
+            balanceDisplay.textContent = balance.toFixed(2);
+
+            const entryPrice = symbolData.currentCandle.close;
+            const entryTime = symbolData.currentCandle.time;
+
+            const line = chart.addLineSeries({
+                color: direction === 'up' ? '#00ff00' : '#ff9900',
+                lineWidth: 2,
+                lineStyle: 2,
+                priceLineVisible: true,
+            });
+            line.setData([
+                { time: entryTime, value: entryPrice },
+                { time: entryTime + duration, value: entryPrice },
+            ]);
+
+            const order = { symbol, direction, entryTime, entryPrice, stake, duration, line, resolved: false };
+            openOrders.push(order);
+
+            const timeString = new Date(entryTime * 1000).toLocaleTimeString();
+            const div = document.createElement('div');
+            div.className = 'history-entry';
+            div.textContent = `${timeString} — ${symbol} ${direction === 'up' ? '🔼' : '🔽'} | вход: $${entryPrice.toFixed(2)} | ставка: $${stake.toFixed(2)} | ⏳ Ожидает... `;
+            const countdownSpan = document.createElement('span');
+            div.appendChild(countdownSpan);
+            historyList.prepend(div);
+
+            order.domElement = div;
+            order.countdownSpan = countdownSpan;
+
+            function updateCountdown() {
+                const now = Math.floor(Date.now() / 1000);
+                const secondsLeft = order.entryTime + order.duration - now;
+                order.countdownSpan.textContent = secondsLeft >= 0 ? `(${secondsLeft} с)` : '';
+            }
+            updateCountdown();
+            order.countdownInterval = setInterval(updateCountdown, 1000);
+
+            saveState();
+        }
+
+        setInterval(() => {
+            const now = Math.floor(Date.now() / 1000);
+            openOrders.forEach(order => {
+                if (!order.resolved && now >= order.entryTime + order.duration) {
+                    const symbolData = allData[order.symbol];
+                    const closeCandle = symbolData.data.find(c => c.time === order.entryTime + order.duration);
+                    const closePrice = closeCandle ? closeCandle.close : symbolData.currentCandle.close;
+
+                    const priceDiff = closePrice - order.entryPrice;
+                    const percentChange = priceDiff / order.entryPrice;
+                    const finalAmount = order.direction === 'up' ? order.stake * (1 + percentChange) : order.stake * (1 - percentChange);
+                    const profit = finalAmount - order.stake;
+
+                    balance += finalAmount;
+                    balanceDisplay.textContent = balance.toFixed(2);
+                    order.resolved = true;
+                    setTimeout(() => chart.removeSeries(order.line), 2000);
+
+                    const timeString = new Date(order.entryTime * 1000).toLocaleTimeString();
+                    tradeHistory.push({ time: timeString, symbol: order.symbol, direction: order.direction, entryPrice: order.entryPrice, exitPrice: closePrice, stake: order.stake, profit });
+
+                    if (tradeHistory.length > 5) tradeHistory.shift();
+
+                    const el = order.domElement;
+                    el.className = 'history-entry ' + (profit >= 0 ? 'profit' : 'loss');
+                    el.textContent = `${timeString} — ${order.symbol} ${order.direction === 'up' ? '🔼' : '🔽'} | вход: $${order.entryPrice.toFixed(2)} → $${closePrice.toFixed(2)} | ставка: $${order.stake.toFixed(2)} | ${profit >= 0 ? 'ПРИБЫЛЬ' : 'УБЫТОК'}: $${profit.toFixed(2)}`;
+
+                    clearInterval(order.countdownInterval);
+                    saveState();
+                    renderHistory();
+                }
+            });
+        }, 1000);
+
+        document.getElementById('buyUp').addEventListener('click', () => placeOrder('up'));
+        document.getElementById('buyDown').addEventListener('click', () => placeOrder('down'));
+
+        renderHistory();
+        loadSymbols();
+
+        document.getElementById('reset-balance-btn').addEventListener('click', () => {
+            if (confirm('Вы уверены, что хотите сбросить баланс до 1000 USD?')) {
+                balance = 1000;
+                balanceDisplay.textContent = balance.toFixed(2);
+                saveState(); // синхронизируем и локально, и в Firestore
+                alert('Баланс сброшен до 1000 USD');
             }
         });
 
-
-        // Регистрация
-        async function register() {
-            const email = document.getElementById('email').value;
-            const pass = document.getElementById('password').value;
-
-            if (!email || !pass) return alert("Введите email и пароль");
-
-            try {
-                await auth.createUserWithEmailAndPassword(email, pass);
-            } catch (err) {
-                alert("Ошибка регистрации: " + err.message);
-            }
-        }
-
-        // Вход
-        async function login() {
-            const email = document.getElementById('email').value;
-            const pass = document.getElementById('password').value;
-
-            if (!email || !pass) return alert("Введите email и пароль");
-
-            try {
-                await auth.signInWithEmailAndPassword(email, pass);
-            } catch (err) {
-                alert("Ошибка входа: " + err.message);
-            }
-        }
-
-        // Выход
-        function logout() {
-            auth.signOut();
-        }
-
-        // Сделать ставку
-        async function placeBet() {
-            const userRef = db.collection('users').doc(currentUser.uid);
-            const snap = await userRef.get();
-            let { balance, history } = snap.data();
-
-            if (balance <= 0) {
-                alert("Недостаточно средств!");
-                return;
-            }
-
-            const win = Math.random() < 0.5;
-            const newBalance = win ? balance * 2 : Math.max(balance - 10, 0);
-            const result = win ? "Выигрыш x2" : "Проигрыш -10";
-
-            const entry = { date: new Date().toLocaleString(), result, balance: newBalance };
-            history.push(entry);
-
-            await userRef.update({ balance: newBalance, history: history });
-            updateUI({ balance: newBalance, history: history });
-        }
-
-        // Обновляем UI
-        function updateUI(data) {
-            document.getElementById('balance').textContent = data.balance;
-            const historyList = document.getElementById('history');
-            historyList.innerHTML = '';
-            data.history.forEach(h => {
-                const li = document.createElement('li');
-                li.textContent = `${h.date}: ${h.result} (Баланс: ${h.balance})`;
-                historyList.appendChild(li);
-            });
-        }
+        // На всякий случай сохраняем при закрытии вкладки
+        window.addEventListener('beforeunload', saveState);
     </script>
 </body>
 
