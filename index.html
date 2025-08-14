@@ -700,20 +700,31 @@
             });
         }
 
-        function loadUserData(userId) {
-            return firebase.firestore().collection('users').doc(userId).get().then(doc => {
-                if (doc.exists) {
-                    balance = doc.data().balance;
-                    tradeHistory = doc.data().tradeHistory || [];
-                } else {
-                    // если в Firestore нет данных — создаём стартовые
-                    balance = 1000;
-                    tradeHistory = [];
-                    saveUserData(userId); // сохраняем стартовые только один раз
-                }
-                renderBalance();
-                renderTradeHistory();
-            });
+        let unsubscribeUserData = null;
+
+        function subscribeUserData(userId) {
+            if (unsubscribeUserData) unsubscribeUserData(); // отписываемся, если уже есть подписка
+
+            unsubscribeUserData = firebase.firestore()
+                .collection('users')
+                .doc(userId)
+                .onSnapshot(doc => {
+                    if (doc.exists) {
+                        // Данные из Firestore всегда будут главными
+                        balance = doc.data().balance;
+                        tradeHistory = doc.data().tradeHistory || [];
+
+                        renderBalance();
+                        renderTradeHistory();
+                    } else {
+                        // Если данных нет — создаём стартовые в Firestore
+                        balance = 1000;
+                        tradeHistory = [];
+                        saveUserData(userId);
+                    }
+                }, error => {
+                    console.error("Ошибка подписки на данные пользователя:", error);
+                });
         }
 
 
@@ -756,16 +767,18 @@
                 regLoginContainer.style.display = 'none';
                 mainAppContent.style.display = 'block';
 
-                loadUserData(user.uid).then(() => {
-                    renderHistory();
-                    loadSymbols();
-                });
+                subscribeUserData(user.uid); // теперь вместо loadUserData
+                renderHistory();
+                loadSymbols();
             } else {
                 accountArea.style.display = 'none';
                 regLoginContainer.style.display = 'block';
                 mainAppContent.style.display = 'none';
+
+                if (unsubscribeUserData) unsubscribeUserData(); // отписываемся при выходе
             }
         }
+
 
 
         auth.onAuthStateChanged(updateUI);
