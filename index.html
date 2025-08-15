@@ -164,6 +164,17 @@
             });
         }
 
+
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                userId = user.uid;
+                initGame();
+            } else {
+                document.getElementById('auth').style.display = 'block';
+                document.getElementById('game').style.display = 'none';
+            }
+        });
+
     </script>
 
 </body>
