@@ -764,7 +764,7 @@
                         const data = doc.data();
                         balance = data.balance || 0;
                         tradeHistory = data.tradeHistory || [];
-                        allData = data.chartData || {};
+
                     } else {
                         saveState(); // Создаём начальные данные
                     }
@@ -784,8 +784,8 @@
 
             db.collection('users').doc(user.uid).set({
                 balance: balance,
-                tradeHistory: tradeHistory,
-                chartData: allData
+                tradeHistory: tradeHistory
+
             }).catch(err => console.error('Ошибка сохранения состояния:', err));
         }
 
@@ -976,7 +976,6 @@
 
             const userData = {
                 balance: balance,
-                chartData: allData,
                 tradeHistory: tradeHistory
             };
 
