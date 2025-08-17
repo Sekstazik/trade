@@ -702,7 +702,7 @@
 
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
-        const db = firebase.firestore();
+        const db = firebase.database();
 
         // Элементы страницы
         const loaderContainer = document.getElementById('loader-container');
@@ -758,10 +758,10 @@
             const user = auth.currentUser;
             if (!user) return;
 
-            db.collection('users').doc(user.uid).get()
-                .then(doc => {
-                    if (doc.exists) {
-                        const data = doc.data();
+            db.ref('users/' + user.uid).once('value')
+                .then(snapshot => {
+                    const data = snapshot.val();
+                    if (data) {
                         balance = data.balance || 0;
                         tradeHistory = data.tradeHistory || [];
                         allData = data.chartData || {};
@@ -769,7 +769,6 @@
                         saveState(); // Создаём начальные данные
                     }
 
-                    // Рендерим интерфейс после загрузки
                     balanceDisplay.textContent = balance.toFixed(2);
                     renderHistory();
                     loadSymbols();
@@ -782,11 +781,12 @@
             const user = auth.currentUser;
             if (!user) return;
 
-            db.collection('users').doc(user.uid).set({
+            db.ref('users/' + user.uid).set({
                 balance: balance,
                 tradeHistory: tradeHistory,
                 chartData: allData
             }).catch(err => console.error('Ошибка сохранения состояния:', err));
+
         }
 
         // Подписка на изменения авторизации
