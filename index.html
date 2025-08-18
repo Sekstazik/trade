@@ -397,7 +397,6 @@
         }
 
         #controls {
-            position: absolute;
             top: 10px;
             left: 10px;
             z-index: 10;
@@ -420,7 +419,6 @@
         }
 
         #right-panel {
-            width: 300px;
             background-color: #111;
             border-left: 1px solid #333;
             padding: 10px;
@@ -503,7 +501,6 @@
 
         #balance-container {
             text-align: center;
-            width: 190px;
             gap: 12px;
             padding: 10px 15px;
             background-color: #111;
@@ -644,39 +641,40 @@
 
 
         <div id="main-app-content" style="display: none; height: calc(100vh - 110px);">
-            <div style="display: flex; height: 100%;">
+            <div id="controls" style=" top: 10px; left: 10px; z-index: 10;">
+                <input type="text" id="symbolSearch" placeholder="Поиск..." />
+                <select id="symbol" style="width: 300px;">
+                    <option>Загрузка...</option>
+                </select>
+
+
+                <select id="duration">
+                    <option value="60">1м</option>
+                    <option value="120">2м</option>
+                    <option value="300">5м</option>
+                </select>
+
+            </div>
+            <div style="display: flex; height: 50%;">
                 <div id="left-panel" style="flex: 1; position: relative;">
-                    <div id="controls" style=" top: 10px; left: 10px; z-index: 10;">
-                        <input type="text" id="symbolSearch" placeholder="Поиск..." />
-                        <select id="symbol">
-                            <option>Загрузка...</option>
-                        </select>
 
-                        <label for="duration">Время:</label>
-                        <select id="duration">
-                            <option value="60">1м</option>
-                            <option value="120">2м</option>
-                            <option value="300">5м</option>
-                        </select>
-
-                    </div>
                     <div id="chart" style="width: 100%; height: 100%;"></div>
                 </div>
 
-                <div id="right-panel"
-                    style="width: 300px; background: #111; border-left: 1px solid #333; padding: 10px; display: flex; flex-direction: column; overflow-y: auto;">
-                    <div class="stake-container">
-                        <label for="stake" class="stake-label">Сумма сделки</label>
-                        <input type="number" id="stake" value="100" min="10" step="10" />
-                    </div>
-                    <div id="trade-buttons" style="margin-bottom: 10px; gap: 10px;">
-                        <button id="buyUp">Вверх</button>
-                        <button id="buyDown">Вниз</button>
-                    </div>
 
-                    <div id="history" style="flex: 1; overflow-y: auto;">
-                        <div id="history-list"></div>
-                    </div>
+            </div>
+            <div id="right-panel">
+                <div class="stake-container">
+                    <label for="stake" class="stake-label">Сумма сделки</label>
+                    <input type="number" id="stake" value="100" min="10" step="10" />
+                </div>
+                <div id="trade-buttons" style="margin-bottom: 10px; gap: 10px;">
+                    <button id="buyUp">Вверх</button>
+                    <button id="buyDown">Вниз</button>
+                </div>
+
+                <div id="history" style="flex: 1; overflow-y: auto;">
+                    <div id="history-list"></div>
                 </div>
             </div>
         </div>
