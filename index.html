@@ -987,15 +987,40 @@
 
         function renderHistory() {
             historyList.innerHTML = '';
-            // Показываем только последние 5 записей, перевернутые по времени (новые сверху)
+            const now = Math.floor(Date.now() / 1000);
+
             const recentHistory = tradeHistory.slice(-5).reverse();
-            recentHistory.forEach(({ time, symbol, direction, entryPrice, exitPrice, stake, profit }) => {
+            recentHistory.forEach(order => {
                 const div = document.createElement('div');
-                div.className = 'history-entry ' + (profit >= 0 ? 'profit' : 'loss');
-                div.textContent = `${time} — ${symbol} ${direction === 'up' ? '🔼' : '🔽'} | вход: $${entryPrice.toFixed(2)} → $${exitPrice.toFixed(2)} | ставка: $${stake.toFixed(2)} | ${profit >= 0 ? 'ПРИБЫЛЬ' : 'УБЫТОК'}: $${profit.toFixed(2)}`;
+                const remaining = order.endTime ? order.endTime - now : 0;
+
+                if (remaining > 0) {
+                    div.className = 'history-entry waiting';
+                    div.textContent = `${order.time} — ${order.symbol} ${order.direction === 'up' ? '🔼' : '🔽'} | вход: $${order.entryPrice.toFixed(2)} | ставка: $${order.stake.toFixed(2)} | ⏳ `;
+
+                    const countdownSpan = document.createElement('span');
+                    div.appendChild(countdownSpan);
+
+                    function updateCountdown() {
+                        const secondsLeft = order.endTime - Math.floor(Date.now() / 1000);
+                        if (secondsLeft >= 0) {
+                            countdownSpan.textContent = `(${secondsLeft} с)`;
+                        } else {
+                            countdownSpan.textContent = '';
+                            div.className = 'history-entry'; // меняем класс после окончания
+                        }
+                    }
+                    updateCountdown();
+                    setInterval(updateCountdown, 1000);
+                } else {
+                    div.className = 'history-entry ' + (order.profit >= 0 ? 'profit' : 'loss');
+                    div.textContent = `${order.time} — ${order.symbol} ${order.direction === 'up' ? '🔼' : '🔽'} | вход: $${order.entryPrice.toFixed(2)} → $${order.exitPrice.toFixed(2)} | ставка: $${order.stake.toFixed(2)} | ${order.profit >= 0 ? 'ПРИБЫЛЬ' : 'УБЫТОК'}: $${order.profit.toFixed(2)}`;
+                }
+
                 historyList.appendChild(div);
             });
         }
+
 
         function initChart() {
             if (chart) chart.remove();
@@ -1122,23 +1147,39 @@
                 duration,
                 line,
                 resolved: false,
+                exitPrice: null,   // ещё не известно
+                profit: null       // ещё не известно
             };
 
             openOrders.push(order);
 
-            const timeString = new Date(entryTime * 1000).toLocaleTimeString();
+            // Добавляем в tradeHistory сразу же с отметкой "ожидает"
+            tradeHistory.push({
+                time: new Date(entryTime * 1000).toLocaleTimeString(),
+                symbol: order.symbol,
+                direction: order.direction,
+                entryPrice: order.entryPrice,
+                exitPrice: 0,
+                stake: order.stake,
+                profit: 0,
+                endTime: entryTime + duration // сохраняем момент завершения
+            });
+            saveState(); // сохраняем в Firebase
+
+            // Отображаем в интерфейсе
             const div = document.createElement('div');
-            div.className = 'history-entry';
-            div.textContent = `${timeString} — ${symbol} ${direction === 'up' ? '🔼' : '🔽'} | вход: $${entryPrice.toFixed(2)} | ставка: $${stake.toFixed(2)} | ⏳ Ожидает... `;
+            div.className = 'history-entry waiting';
+            div.textContent = `${new Date(entryTime * 1000).toLocaleTimeString()} — ${symbol} ${direction === 'up' ? '🔼' : '🔽'} | вход: $${entryPrice.toFixed(2)} | ставка: $${stake.toFixed(2)} | ⏳ Ожидает... `;
 
             const countdownSpan = document.createElement('span');
             div.appendChild(countdownSpan);
 
             historyList.prepend(div);
+
             order.domElement = div;
             order.countdownSpan = countdownSpan;
 
-            // Запускаем таймер обратного отсчёта
+            // Таймер обратного отсчёта
             function updateCountdown() {
                 const now = Math.floor(Date.now() / 1000);
                 const secondsLeft = order.entryTime + order.duration - now;
@@ -1152,10 +1193,13 @@
             updateCountdown();
             order.countdownInterval = setInterval(() => {
                 updateCountdown();
+                const now = Math.floor(Date.now() / 1000);
+                if (now >= order.entryTime + order.duration) {
+                    resolveOrder(order);
+                }
             }, 1000);
-
-            saveState();
         }
+
 
 
         setInterval(() => {
